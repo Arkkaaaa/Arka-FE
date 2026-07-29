@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const backendTarget =
-    loadEnv(mode, '.', 'ARKA_')['ARKA_BACKEND_URL'] ?? 'http://localhost:4001';
+    loadEnv(mode, '.', 'VITE_')['VITE_BACKEND_URL'] ?? 'http://localhost:4001';
 
   return {
     plugins: [react(), tailwindcss()],

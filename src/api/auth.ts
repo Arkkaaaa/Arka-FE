@@ -21,7 +21,7 @@ export function getCurrentUser(): Promise<MeDto> {
 }
 
 export function getAuthCapabilities(): Promise<AuthCapabilitiesDto> {
-  return apiGet(API_ENDPOINTS.auth.capabilities, AuthCapabilitiesDtoSchema);
+  return apiGet(API_ENDPOINTS.auth.capabilities, AuthCapabilitiesDtoSchema, { cache: 'no-store' });
 }
 
 export async function signUp(input: EmailRegistrationRequest): Promise<void> {

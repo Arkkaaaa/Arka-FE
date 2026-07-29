@@ -20,6 +20,8 @@ export class ApiError extends Error {
   }
 }
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/u, '') ?? '';
+
 const BetterAuthErrorSchema = z.object({
   code: z.string().min(1).max(80),
   message: z.string().min(1).max(240),
@@ -43,7 +45,7 @@ function errorFromBody(status: number, body: unknown, fallback: string): ApiErro
 }
 
 function apiUrl(path: string): string {
-  return path;
+  return `${backendUrl}${path}`;
 }
 
 async function responseJson(response: Response): Promise<unknown> {
@@ -93,8 +95,8 @@ export function requestBody<T>(schema: ZodType<T>, body: unknown): T {
   return parsed.data;
 }
 
-export function apiGet<T>(path: string, schema: ZodType<T>): Promise<T> {
-  return request(path, schema);
+export function apiGet<T>(path: string, schema: ZodType<T>, init: RequestInit = {}): Promise<T> {
+  return request(path, schema, init);
 }
 
 export function apiPostPublic<T>(path: string, body: unknown, schema: ZodType<T>): Promise<T> {

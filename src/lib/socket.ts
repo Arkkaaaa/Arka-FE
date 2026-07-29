@@ -26,10 +26,12 @@ export interface AppSocket {
 }
 
 const MAX_RECONNECT_ATTEMPTS = 6;
+const backendUrl = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/u, '') ?? window.location.origin;
 
 function socketUrl(): string {
-  const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${scheme}//${window.location.host}/ws/app`;
+  const url = new URL('/ws/app', backendUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
 }
 
 function messageId(): string {
