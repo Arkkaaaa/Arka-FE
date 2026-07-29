@@ -89,6 +89,8 @@ const REVEAL = {
 };
 
 interface LandingContentProps {
+  accountEmail: string;
+  accountImage: string | null;
   institutionName: string;
   isSessionLoading: boolean;
   isSignedIn: boolean;
@@ -98,6 +100,8 @@ interface LandingContentProps {
 }
 
 export function LandingContent({
+  accountEmail,
+  accountImage,
   institutionName,
   isSessionLoading,
   isSignedIn,
@@ -115,6 +119,8 @@ export function LandingContent({
       </a>
 
       <MarketingHeader
+        accountEmail={accountEmail}
+        accountImage={accountImage}
         institutionName={institutionName}
         isSessionLoading={isSessionLoading}
         isSignedIn={isSignedIn}

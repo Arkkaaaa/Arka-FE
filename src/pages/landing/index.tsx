@@ -10,6 +10,8 @@ export function LandingPage() {
 
   return (
     <LandingContent
+      accountEmail={me?.user.email ?? ''}
+      accountImage={me?.user.image ?? null}
       institutionName={me?.institution.name ?? ''}
       isSessionLoading={session.isPending}
       isSignedIn={Boolean(me)}

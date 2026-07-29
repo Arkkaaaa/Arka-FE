@@ -1,3 +1,4 @@
+export { AccountMenu } from './account-menu/index.ts';
 export { AuthShell } from './auth-shell/index.ts';
 export { Brand } from './brand/index.ts';
 export { LandingContent } from './landing/index.ts';

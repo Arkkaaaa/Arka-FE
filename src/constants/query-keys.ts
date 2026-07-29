@@ -3,9 +3,11 @@ import type { GameMode } from '@/schemas';
 export const QUERY_KEYS = {
   session: ['me'] as const,
   authCapabilities: ['auth', 'capabilities'] as const,
+  institutionOnboarding: ['auth', 'institution-onboarding'] as const,
   dashboard: {
     all: ['dashboard'] as const,
     summary: ['dashboard', 'summary'] as const,
+    activity: ['dashboard', 'activity'] as const,
   },
   gameSessions: {
     all: ['game-sessions'] as const,

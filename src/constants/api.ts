@@ -6,9 +6,11 @@ export const API_ENDPOINTS = {
     signUp: '/api/auth/sign-up/email',
     socialSignIn: '/api/auth/sign-in/social',
     signOut: '/api/auth/sign-out',
+    onboarding: '/api/v1/auth/onboarding',
   },
   dashboard: {
     summary: '/api/v1/dashboard/summary',
+    activity: '/api/v1/dashboard/activity',
   },
   games: {
     preparations: '/api/v1/game-preparations',

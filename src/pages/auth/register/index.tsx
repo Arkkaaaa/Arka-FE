@@ -1,6 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { healthcareTeamPhoto } from '../../../assets/index.ts';
 import {
@@ -11,7 +10,6 @@ import {
   PasswordVisibilityButton,
 } from '../../../components/index.ts';
 import { messageOf } from '../../../config/api-client.ts';
-import { QUERY_KEYS } from '../../../constants/query-keys.ts';
 import { ROUTES } from '../../../constants/routes.ts';
 import { useAuthCapabilitiesQuery } from '../../../hooks/auth/use-auth-capabilities-query.ts';
 import { useGoogleSignInMutation } from '../../../hooks/auth/use-google-sign-in-mutation.ts';
@@ -40,7 +38,7 @@ type FieldErrors = Partial<Record<FieldName, string>>;
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const capabilities = useAuthCapabilitiesQuery();
   const signUp = useSignUpMutation();
   const googleSignIn = useGoogleSignInMutation();
@@ -52,7 +50,11 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() =>
+    searchParams.has('oauthError')
+      ? 'Pendaftaran dengan Google dibatalkan atau belum dapat diselesaikan.'
+      : '',
+  );
 
   const busy = signUp.isPending || googleSignIn.isPending;
   const googleEnabled = capabilities.data?.socialProviders.google === true;
@@ -93,8 +95,7 @@ export function RegisterPage() {
     setFormError('');
     try {
       await signUp.mutateAsync(parsed.data);
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.session });
-      navigate(ROUTES.landing, { replace: true });
+      navigate(`${ROUTES.login}?registered=1`, { replace: true });
     } catch (error) {
       setFormError(messageOf(error));
     }
@@ -104,7 +105,7 @@ export function RegisterPage() {
     if (busy) return;
     setFormError('');
     try {
-      const url = await googleSignIn.mutateAsync();
+      const url = await googleSignIn.mutateAsync('register');
       window.location.assign(url);
     } catch (error) {
       setFormError(messageOf(error));

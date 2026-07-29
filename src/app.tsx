@@ -1,19 +1,32 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from 'framer-motion';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { ApiError } from './config/api-client.ts';
+import { useSessionQuery } from './hooks/auth/use-session-query.ts';
 import { ROUTES } from './constants/routes.ts';
-import { LoginPage } from './pages/auth/login/index.tsx';
-import { RegisterPage } from './pages/auth/register/index.tsx';
-import { LandingPage } from './pages/landing/index.tsx';
-
+const LandingPage = lazy(() =>
+  import('./pages/landing/index.tsx').then((module) => ({ default: module.LandingPage })),
+);
+const LoginPage = lazy(() =>
+  import('./pages/auth/login/index.tsx').then((module) => ({ default: module.LoginPage })),
+);
+const RegisterPage = lazy(() =>
+  import('./pages/auth/register/index.tsx').then((module) => ({ default: module.RegisterPage })),
+);
 const ContactPage = lazy(() =>
   import('./pages/contact/index.tsx').then((module) => ({ default: module.ContactPage })),
+);
+const DashboardPage = lazy(() =>
+  import('./pages/dashboard/index.tsx').then((module) => ({ default: module.DashboardPage })),
 );
 const FaqPage = lazy(() =>
   import('./pages/faq/index.tsx').then((module) => ({ default: module.FaqPage })),
 );
 const MissionPage = lazy(() =>
   import('./pages/mission/index.tsx').then((module) => ({ default: module.MissionPage })),
+);
+const OnboardingPage = lazy(() =>
+  import('./pages/onboarding/index.tsx').then((module) => ({ default: module.OnboardingPage })),
 );
 
 function AuthTransition({ children }: { children: React.ReactNode }) {
@@ -30,6 +43,24 @@ function AuthTransition({ children }: { children: React.ReactNode }) {
       {children}
     </m.div>
   );
+}
+
+function OnboardingRedirect() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const session = useSessionQuery();
+
+  useEffect(() => {
+    if (
+      session.error instanceof ApiError &&
+      session.error.code === 'institution_onboarding_required' &&
+      location.pathname !== ROUTES.onboarding
+    ) {
+      navigate(ROUTES.onboarding, { replace: true });
+    }
+  }, [location.pathname, navigate, session.error]);
+
+  return null;
 }
 
 function PageFallback() {
@@ -54,13 +85,16 @@ export function App() {
 
   return (
     <LazyMotion features={domAnimation} strict>
+      <OnboardingRedirect />
       <Suspense fallback={<PageFallback />}>
         <AnimatePresence initial={false} mode="wait">
           <Routes key={location.pathname} location={location}>
             <Route element={<LandingPage />} path={ROUTES.landing} />
+            <Route element={<DashboardPage />} path={ROUTES.dashboard} />
             <Route element={<MissionPage />} path={ROUTES.mission} />
             <Route element={<FaqPage />} path={ROUTES.faq} />
             <Route element={<ContactPage />} path={ROUTES.contact} />
+            <Route element={<OnboardingPage />} path={ROUTES.onboarding} />
             <Route
               element={
                 <AuthTransition>

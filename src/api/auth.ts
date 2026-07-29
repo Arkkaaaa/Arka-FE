@@ -1,20 +1,26 @@
 import {
   AuthCapabilitiesDtoSchema,
   EmailRegistrationRequestSchema,
+  InstitutionOnboardingRequestSchema,
+  InstitutionOnboardingStatusSchema,
   MeDtoSchema,
   SocialSignInResponseSchema,
   type AuthCapabilitiesDto,
   type EmailRegistrationRequest,
+  type InstitutionOnboardingRequest,
+  type InstitutionOnboardingStatus,
   type MeDto,
 } from '@/schemas';
 import {
   apiGet,
+  apiPost,
   apiPostPublic,
   apiPostWithoutResponse,
   ApiError,
   requestBody,
 } from '../config/api-client.ts';
 import { API_ENDPOINTS } from '../constants/api.ts';
+import { ROUTES } from '../constants/routes.ts';
 
 export function getCurrentUser(): Promise<MeDto> {
   return apiGet(API_ENDPOINTS.auth.me, MeDtoSchema);
@@ -65,16 +71,43 @@ export async function signUp(input: EmailRegistrationRequest): Promise<void> {
   }
 }
 
-export async function beginGoogleSignIn(callbackUrl: string): Promise<string> {
+export async function beginGoogleSignIn(intent: 'login' | 'register'): Promise<string> {
+  const onboardingUrl = new URL(ROUTES.onboarding, window.location.origin).toString();
+  const errorUrl = new URL(intent === 'login' ? ROUTES.login : ROUTES.register, window.location.origin);
+  errorUrl.searchParams.set('oauthError', '1');
   const response = await apiPostPublic(
     API_ENDPOINTS.auth.socialSignIn,
-    { provider: 'google', callbackURL: callbackUrl },
+    {
+      provider: 'google',
+      callbackURL: onboardingUrl,
+      errorCallbackURL: errorUrl.toString(),
+      ...(intent === 'register'
+        ? { requestSignUp: true, newUserCallbackURL: onboardingUrl }
+        : {}),
+    },
     SocialSignInResponseSchema,
   );
   if (!response.redirect || !response.url) {
     throw new ApiError(502, 'OAUTH_REDIRECT_MISSING', 'Google belum dapat dihubungkan. Coba lagi.');
   }
   return response.url;
+}
+
+export function getInstitutionOnboarding(): Promise<InstitutionOnboardingStatus> {
+  return apiGet(API_ENDPOINTS.auth.onboarding, InstitutionOnboardingStatusSchema, { cache: 'no-store' });
+}
+
+export function completeInstitutionOnboarding(
+  input: InstitutionOnboardingRequest,
+  csrfToken: string,
+): Promise<InstitutionOnboardingStatus> {
+  const body = requestBody(InstitutionOnboardingRequestSchema, input);
+  return apiPost(
+    API_ENDPOINTS.auth.onboarding,
+    body,
+    InstitutionOnboardingStatusSchema,
+    csrfToken,
+  );
 }
 
 export async function signIn(email: string, password: string): Promise<void> {

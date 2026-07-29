@@ -4,6 +4,8 @@ export const ROUTES = {
   landing: '/',
   login: '/login',
   register: '/register',
+  onboarding: '/onboarding',
+  dashboard: '/dashboard',
   mission: '/mission',
   faq: '/faq',
   contact: '/contact',

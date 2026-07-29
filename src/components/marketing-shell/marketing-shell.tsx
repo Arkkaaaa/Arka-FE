@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Menu, X } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { arkaLogo } from '../../assets/index.ts';
 import { messageOf } from '../../config/api-client.ts';
@@ -7,7 +8,8 @@ import { useSessionQuery } from '../../hooks/auth/use-session-query.ts';
 import { useSignOutMutation } from '../../hooks/auth/use-sign-out-mutation.ts';
 import { cn } from '../../lib/utils.ts';
 import { Brand } from '../brand/brand.tsx';
-import { Button, buttonClassName } from '../ui/button/button.tsx';
+import { AccountMenu } from '../account-menu/account-menu.tsx';
+import { buttonClassName } from '../ui/button/button.tsx';
 
 const NAVIGATION = [
   { label: 'Home', to: ROUTES.landing },
@@ -17,6 +19,8 @@ const NAVIGATION = [
 ] as const;
 
 interface MarketingHeaderProps {
+  accountEmail?: string;
+  accountImage?: string | null;
   institutionName?: string;
   isSessionLoading?: boolean;
   isSignedIn?: boolean;
@@ -25,28 +29,57 @@ interface MarketingHeaderProps {
 }
 
 export function MarketingHeader({
+  accountEmail = '',
+  accountImage = null,
   institutionName = '',
   isSessionLoading = false,
   isSignedIn = false,
   isSigningOut = false,
   onSignOut,
 }: MarketingHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const headerRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !headerRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+    };
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <header className="relative z-20 border-b-2 border-divider bg-white shadow-[0_3px_0_#d9d4c5]">
-      <div className="mx-auto grid min-h-18 w-full max-w-[72rem] grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3 sm:px-8 md:grid-cols-[1fr_auto_1fr]">
-        <div className="min-w-0 justify-self-start">
+    <header
+      className="relative z-20 border-b-2 border-divider bg-white shadow-[0_3px_0_#d9d4c5]"
+      ref={headerRef}
+    >
+      <div className="mx-auto flex min-h-18 w-full max-w-[72rem] items-center justify-between gap-4 px-5 py-3 sm:px-8">
+        <div className="min-w-0">
           <Brand compact />
         </div>
 
-        <nav
-          aria-label="Navigasi utama"
-          className="order-3 col-span-2 grid w-full grid-cols-4 gap-1 md:order-none md:col-span-1 md:flex md:w-auto md:gap-3"
-        >
+        <nav aria-label="Navigasi utama" className="hidden items-center gap-3 md:flex">
           {NAVIGATION.map(({ label, to }) => (
             <NavLink
               className={({ isActive }) =>
                 cn(
-                  'inline-flex min-h-12 items-center justify-center border-b-[3px] px-1 text-base font-bold no-underline transition-colors duration-150 sm:px-3',
+                  'inline-flex min-h-12 items-center border-b-[3px] px-3 text-base font-bold no-underline transition-colors duration-150',
                   isActive
                     ? 'border-brand text-ink'
                     : 'border-transparent text-muted hover:border-brand hover:text-ink',
@@ -61,21 +94,20 @@ export function MarketingHeader({
           ))}
         </nav>
 
-        <div className="justify-self-end">
+        <div className="flex items-center gap-2">
           {isSessionLoading ? (
-            <span aria-hidden className="block h-12 w-28 rounded-sm bg-divider" />
+            <span aria-hidden className="block size-12 rounded-full bg-divider" />
           ) : isSignedIn ? (
-            <div className="flex items-center gap-2">
-              <span className="hidden max-w-44 truncate text-base font-bold text-muted lg:inline">
-                {institutionName}
-              </span>
-              <Button disabled={isSigningOut} onClick={onSignOut} variant="secondary">
-                {isSigningOut ? 'Keluar…' : 'Keluar'}
-              </Button>
-            </div>
+            <AccountMenu
+              email={accountEmail}
+              image={accountImage}
+              institutionName={institutionName}
+              isSigningOut={isSigningOut}
+              onSignOut={() => onSignOut?.()}
+            />
           ) : (
-            <div className="flex items-center gap-2">
-              <Link className={buttonClassName('quiet', 'hidden lg:inline-flex')} to={ROUTES.login}>
+            <div className="hidden items-center gap-2 md:flex">
+              <Link className={buttonClassName('quiet')} to={ROUTES.login}>
                 Masuk
               </Link>
               <Link className={buttonClassName('primary')} to={ROUTES.register}>
@@ -83,8 +115,58 @@ export function MarketingHeader({
               </Link>
             </div>
           )}
+
+          <button
+            aria-controls={menuId}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+            className="grid size-12 place-items-center rounded-sm border-2 border-divider text-ink transition-colors hover:bg-brand-soft focus-visible:outline-4 md:hidden"
+            onClick={() => setMenuOpen((open) => !open)}
+            ref={menuButtonRef}
+            type="button"
+          >
+            {menuOpen ? <X aria-hidden className="size-6" /> : <Menu aria-hidden className="size-6" />}
+          </button>
         </div>
       </div>
+
+      <nav
+        aria-label="Menu navigasi mobile"
+        className={cn(
+          'absolute inset-x-0 top-full border-t-2 border-divider bg-white px-5 py-3 shadow-[0_8px_16px_rgb(23_23_17_/_16%)] md:hidden',
+          menuOpen ? 'block' : 'hidden',
+        )}
+        id={menuId}
+      >
+        <div className="grid gap-1">
+          {NAVIGATION.map(({ label, to }) => (
+            <NavLink
+              className={({ isActive }) =>
+                cn(
+                  'inline-flex min-h-12 items-center rounded-sm px-4 text-lg font-bold no-underline',
+                  isActive ? 'bg-brand-soft text-ink' : 'text-muted hover:bg-brand-soft hover:text-ink',
+                )
+              }
+              end={to === ROUTES.landing}
+              key={to}
+              onClick={closeMenu}
+              to={to}
+            >
+              {label}
+            </NavLink>
+          ))}
+          {!isSignedIn && !isSessionLoading && (
+            <div className="mt-2 grid gap-2 border-t-2 border-divider pt-3">
+              <Link className={buttonClassName('secondary', 'w-full')} onClick={closeMenu} to={ROUTES.login}>
+                Masuk
+              </Link>
+              <Link className={buttonClassName('primary', 'w-full')} onClick={closeMenu} to={ROUTES.register}>
+                Daftar
+              </Link>
+            </div>
+          )}
+        </div>
+      </nav>
     </header>
   );
 }
@@ -135,6 +217,8 @@ export function MarketingPage({ children }: { children: ReactNode }) {
         Lewati ke konten utama
       </a>
       <MarketingHeader
+        accountEmail={user?.user.email ?? ''}
+        accountImage={user?.user.image ?? null}
         institutionName={user?.institution.name ?? ''}
         isSessionLoading={session.isPending}
         isSignedIn={Boolean(user)}

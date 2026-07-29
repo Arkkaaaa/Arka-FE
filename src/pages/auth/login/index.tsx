@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { seniorExercisePhoto } from '../../../assets/index.ts';
@@ -35,6 +35,7 @@ type FieldErrors = Partial<Record<'email' | 'password', string>>;
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const capabilities = useAuthCapabilitiesQuery();
   const signIn = useSignInMutation();
@@ -45,7 +46,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() =>
+    searchParams.has('oauthError') ? 'Login dengan Google dibatalkan atau belum dapat diselesaikan.' : '',
+  );
+  const registrationCompleted = searchParams.has('registered');
 
   const busy = signIn.isPending || googleSignIn.isPending;
   const googleEnabled = capabilities.data?.socialProviders.google === true;
@@ -72,7 +76,7 @@ export function LoginPage() {
     try {
       await signIn.mutateAsync(parsed.data);
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.session });
-      navigate(ROUTES.landing, { replace: true });
+      navigate(ROUTES.dashboard, { replace: true });
     } catch (error) {
       setFormError(messageOf(error));
     }
@@ -82,7 +86,7 @@ export function LoginPage() {
     if (busy) return;
     setFormError('');
     try {
-      const url = await googleSignIn.mutateAsync();
+      const url = await googleSignIn.mutateAsync('login');
       window.location.assign(url);
     } catch (error) {
       setFormError(messageOf(error));
@@ -155,6 +159,11 @@ export function LoginPage() {
           value={password}
         />
 
+        {registrationCompleted && !formError && (
+          <p aria-live="polite" className="m-0 text-base font-bold leading-6 text-success" role="status">
+            Pendaftaran berhasil. Silakan masuk dengan email dan kata sandi Anda.
+          </p>
+        )}
         {formError && (
           <p aria-live="polite" className="m-0 text-base font-bold leading-6 text-danger" role="alert">
             {formError}
