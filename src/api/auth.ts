@@ -1,0 +1,143 @@
+import {
+  AuthCapabilitiesDtoSchema,
+  EmailRegistrationRequestSchema,
+  MeDtoSchema,
+  SocialSignInResponseSchema,
+  type AuthCapabilitiesDto,
+  type EmailRegistrationRequest,
+  type MeDto,
+} from '@/schemas';
+import {
+  apiGet,
+  apiPostPublic,
+  apiPostWithoutResponse,
+  ApiError,
+  requestBody,
+} from '../config/api-client.ts';
+import { API_ENDPOINTS } from '../constants/api.ts';
+
+export function getCurrentUser(): Promise<MeDto> {
+  return apiGet(API_ENDPOINTS.auth.me, MeDtoSchema);
+}
+
+export function getAuthCapabilities(): Promise<AuthCapabilitiesDto> {
+  return apiGet(API_ENDPOINTS.auth.capabilities, AuthCapabilitiesDtoSchema);
+}
+
+export async function signUp(input: EmailRegistrationRequest): Promise<void> {
+  const body = requestBody(EmailRegistrationRequestSchema, input);
+  try {
+    await apiPostWithoutResponse(API_ENDPOINTS.auth.signUp, body);
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      (error.code === 'USER_ALREADY_EXISTS' ||
+        error.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
+    ) {
+      throw new ApiError(
+        409,
+        'EMAIL_ALREADY_REGISTERED',
+        'Email ini sudah terdaftar. Silakan masuk.',
+      );
+    }
+    if (error instanceof ApiError && error.status === 429) {
+      throw new ApiError(
+        429,
+        error.code,
+        'Terlalu banyak percobaan pendaftaran. Tunggu sebentar lalu coba lagi.',
+      );
+    }
+    if (error instanceof ApiError && error.status >= 500) {
+      throw new ApiError(
+        error.status,
+        error.code,
+        'Layanan pendaftaran sedang tidak tersedia. Coba lagi nanti.',
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        0,
+        'NETWORK_ERROR',
+        'Layanan pendaftaran tidak dapat dihubungi. Periksa koneksi lalu coba lagi.',
+      );
+    }
+    throw error;
+  }
+}
+
+export async function beginGoogleSignIn(callbackUrl: string): Promise<string> {
+  const response = await apiPostPublic(
+    API_ENDPOINTS.auth.socialSignIn,
+    { provider: 'google', callbackURL: callbackUrl },
+    SocialSignInResponseSchema,
+  );
+  if (!response.redirect || !response.url) {
+    throw new ApiError(502, 'OAUTH_REDIRECT_MISSING', 'Google belum dapat dihubungkan. Coba lagi.');
+  }
+  return response.url;
+}
+
+export async function signIn(email: string, password: string): Promise<void> {
+  try {
+    await apiPostWithoutResponse(API_ENDPOINTS.auth.signIn, { email, password });
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      (error.status === 401 ||
+        error.code === 'INVALID_CREDENTIALS' ||
+        error.code === 'INVALID_EMAIL_OR_PASSWORD')
+    ) {
+      throw new ApiError(error.status, 'SIGN_IN_FAILED', 'Email atau kata sandi tidak sesuai.');
+    }
+    if (error instanceof ApiError && error.status === 403) {
+      throw new ApiError(
+        403,
+        error.code,
+        'Akses masuk ditolak. Muat ulang halaman lalu coba lagi.',
+      );
+    }
+    if (error instanceof ApiError && error.status === 429) {
+      throw new ApiError(
+        429,
+        error.code,
+        'Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.',
+      );
+    }
+    if (error instanceof ApiError && error.status >= 500) {
+      throw new ApiError(
+        error.status,
+        error.code,
+        'Layanan masuk sedang tidak tersedia. Coba lagi nanti.',
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        0,
+        'NETWORK_ERROR',
+        'Layanan masuk tidak dapat dihubungi. Periksa koneksi lalu coba lagi.',
+      );
+    }
+    throw error;
+  }
+}
+
+export async function signOut(me: MeDto): Promise<void> {
+  try {
+    await apiPostWithoutResponse(
+      API_ENDPOINTS.auth.signOut,
+      {},
+      {
+        'X-CSRF-Token': me.csrfToken,
+      },
+    );
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw new ApiError(
+        error.status,
+        'SIGN_OUT_FAILED',
+        'Tidak dapat keluar dengan aman. Coba lagi.',
+      );
+    }
+    throw error;
+  }
+}
