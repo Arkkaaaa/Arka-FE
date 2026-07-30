@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
-import { arkaMark } from "../../assets/index.ts";
+import { arkaLogo, arkaMark } from "../../assets/index.ts";
 import { ROUTES } from "../../constants/routes.ts";
 
 interface BrandProps {
   compact?: boolean;
+  transparentMark?: boolean;
 }
 
-export function Brand({ compact = false }: BrandProps) {
+export function Brand({ compact = false, transparentMark = false }: BrandProps) {
   return (
     <Link
       aria-label="Arka, kembali ke halaman utama"
@@ -17,7 +18,7 @@ export function Brand({ compact = false }: BrandProps) {
         alt=""
         aria-hidden
         className="size-11 rounded-full object-cover"
-        src={arkaMark}
+        src={transparentMark ? arkaLogo : arkaMark}
       />
       <span className="brand-wordmark font-sans text-2xl font-bold tracking-[-0.04em]">
         Arka

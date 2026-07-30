@@ -1,18 +1,24 @@
+import { z } from 'zod';
 import {
   AuthCapabilitiesDtoSchema,
+  ChangePasswordRequestSchema,
   EmailRegistrationRequestSchema,
   InstitutionOnboardingRequestSchema,
   InstitutionOnboardingStatusSchema,
   MeDtoSchema,
   SocialSignInResponseSchema,
+  UpdateProfileRequestSchema,
   type AuthCapabilitiesDto,
+  type ChangePasswordRequest,
   type EmailRegistrationRequest,
   type InstitutionOnboardingRequest,
   type InstitutionOnboardingStatus,
   type MeDto,
+  type UpdateProfileRequest,
 } from '@/schemas';
 import {
   apiGet,
+  apiPatch,
   apiPost,
   apiPostPublic,
   apiPostWithoutResponse,
@@ -148,6 +154,37 @@ export async function signIn(email: string, password: string): Promise<void> {
         0,
         'NETWORK_ERROR',
         'Layanan masuk tidak dapat dihubungi. Periksa koneksi lalu coba lagi.',
+      );
+    }
+    throw error;
+  }
+}
+
+export async function updateProfile(
+  input: UpdateProfileRequest,
+  csrfToken: string,
+): Promise<void> {
+  const body = requestBody(UpdateProfileRequestSchema, input);
+  await apiPatch(API_ENDPOINTS.auth.profile, body, z.null(), csrfToken);
+}
+
+export async function changePassword(input: ChangePasswordRequest): Promise<void> {
+  const parsed = requestBody(ChangePasswordRequestSchema, input);
+  try {
+    await apiPostWithoutResponse(API_ENDPOINTS.auth.changePassword, {
+      currentPassword: parsed.currentPassword,
+      newPassword: parsed.newPassword,
+      revokeOtherSessions: true,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'INVALID_PASSWORD') {
+      throw new ApiError(error.status, error.code, 'Kata sandi saat ini tidak sesuai.');
+    }
+    if (error instanceof ApiError && error.code === 'CREDENTIAL_ACCOUNT_NOT_FOUND') {
+      throw new ApiError(
+        error.status,
+        error.code,
+        'Akun ini masuk melalui Google dan belum memiliki kata sandi.',
       );
     }
     throw error;

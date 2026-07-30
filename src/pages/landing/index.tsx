@@ -12,8 +12,8 @@ export function LandingPage() {
     <LandingContent
       accountEmail={me?.user.email ?? ''}
       accountImage={me?.user.image ?? null}
+      accountName={me?.user.name ?? ''}
       institutionName={me?.institution.name ?? ''}
-      isSessionLoading={session.isPending}
       isSignedIn={Boolean(me)}
       isSigningOut={signOut.isPending}
       onSignOut={() => {

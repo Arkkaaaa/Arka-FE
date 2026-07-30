@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, LogOut, LayoutDashboard } from 'lucide-react';
+import { ChevronDown, LayoutDashboard, LogOut, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes.ts';
 import { Button } from '../ui/button/button.tsx';
@@ -9,6 +9,7 @@ interface AccountMenuProps {
   image: string | null;
   institutionName: string;
   isSigningOut: boolean;
+  userName: string;
   onSignOut: () => void;
 }
 
@@ -24,6 +25,7 @@ export function AccountMenu({
   institutionName,
   isSigningOut,
   onSignOut,
+  userName,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -69,8 +71,8 @@ export function AccountMenu({
       <button
         aria-expanded={open}
         aria-haspopup="true"
-        aria-label={`Buka menu akun ${institutionName}`}
-        className="inline-flex min-h-12 items-center gap-2 rounded-sm border-2 border-divider bg-white px-2 text-ink shadow-[0_3px_0_#d9d4c5] transition-colors hover:border-brand-ink focus-visible:outline-4"
+        aria-label={`Buka menu akun ${userName}`}
+        className="inline-flex min-h-12 max-w-[22rem] items-center gap-3 rounded-full bg-transparent px-2 text-left text-ink transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-[linear-gradient(120deg,#f5f7fb,#fff7dc)] focus-visible:-translate-y-0.5 focus-visible:outline-4"
         onClick={() => setOpen((value) => !value)}
         ref={triggerRef}
         type="button"
@@ -84,20 +86,25 @@ export function AccountMenu({
           />
         ) : (
           <span aria-hidden className="grid size-10 place-items-center rounded-full bg-brand text-base font-black text-ink">
-            {initials(institutionName, email)}
+            {initials(userName, email)}
           </span>
         )}
+        <span className="block min-w-0">
+          <strong className="block max-w-28 truncate text-sm font-black sm:max-w-40">{userName}</strong>
+          <span className="block max-w-32 truncate text-xs text-muted sm:max-w-48">{email}</span>
+        </span>
         <ChevronDown aria-hidden className="mr-1 hidden size-5 sm:block" />
       </button>
 
       {open && (
         <div
           aria-label="Menu akun"
-          className="absolute top-[calc(100%+0.75rem)] right-0 z-50 w-72 rounded-md border-2 border-divider bg-white p-3 shadow-[0_8px_20px_rgb(23_23_17_/_18%)]"
+          className="absolute top-[calc(100%+0.75rem)] right-0 z-50 w-72 rounded-md border-2 border-divider bg-white p-3"
         >
           <div className="border-b-2 border-divider px-3 pb-3">
-            <p className="m-0 truncate text-lg font-black">{institutionName}</p>
+            <p className="m-0 truncate text-lg font-black">{userName}</p>
             <p className="mt-1 mb-0 truncate text-base text-muted">{email}</p>
+            <p className="mt-1 mb-0 truncate text-sm font-bold text-muted">{institutionName}</p>
           </div>
           <div className="mt-2 grid gap-1">
             <Link
@@ -106,7 +113,15 @@ export function AccountMenu({
               to={ROUTES.dashboard}
             >
               <LayoutDashboard aria-hidden className="size-5" />
-              Ke dashboard
+              Dashboard
+            </Link>
+            <Link
+              className="inline-flex min-h-12 items-center gap-3 rounded-sm px-3 text-lg font-bold text-ink no-underline hover:bg-brand-soft"
+              onClick={() => setOpen(false)}
+              to={ROUTES.profile}
+            >
+              <UserRound aria-hidden className="size-5" />
+              Profil
             </Link>
             <button
               className="inline-flex min-h-12 items-center gap-3 rounded-sm px-3 text-lg font-bold text-danger hover:bg-danger-soft"
@@ -126,7 +141,7 @@ export function AccountMenu({
       <dialog
         aria-describedby="logout-description"
         aria-labelledby="logout-title"
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink shadow-[0_10px_30px_rgb(23_23_17_/_24%)] backdrop:bg-ink/60"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60"
         onCancel={(event) => {
           event.preventDefault();
           closeDialog();

@@ -58,6 +58,19 @@ export function OnboardingPage() {
     }
   }
 
+  if (onboarding.isPending || (onboarding.data && !onboarding.data.required)) {
+    return (
+      <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-white px-5 text-center" tabIndex={-1}>
+        <div aria-hidden className="absolute -top-40 right-[-10rem] size-[30rem] rounded-full bg-[radial-gradient(circle,rgba(243,198,66,0.22),transparent_68%)]" />
+        <div role="status">
+          <span aria-hidden className="mx-auto block size-11 animate-spin rounded-full border-4 border-divider border-t-accent" />
+          <h1 className="mt-6 mb-0 text-3xl font-black">Menyiapkan akun…</h1>
+          <p className="mt-3 mb-0 text-base text-muted">Memeriksa data institusi Anda.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <AuthShell
       footer={<p className="m-0">Data ini dapat diperbarui oleh pengelola institusi nanti.</p>}
@@ -69,11 +82,7 @@ export function OnboardingPage() {
       visualText="Nama institusi membantu Arka memisahkan peserta, alat, dan hasil sesi secara aman."
       visualTitle="Siapkan ruang latihan untuk tim Anda."
     >
-      {onboarding.isPending ? (
-        <p aria-live="polite" className="text-lg font-bold text-muted" role="status">
-          Menyiapkan akun…
-        </p>
-      ) : onboarding.isError ? (
+      {onboarding.isError ? (
         <div className="grid gap-4" role="alert">
           <p className="m-0 text-lg font-bold leading-7 text-danger">
             Sesi pendaftaran tidak dapat dibaca. Silakan kembali dan daftar dengan Google lagi.

@@ -21,8 +21,8 @@ const NAVIGATION = [
 interface MarketingHeaderProps {
   accountEmail?: string;
   accountImage?: string | null;
+  accountName?: string;
   institutionName?: string;
-  isSessionLoading?: boolean;
   isSignedIn?: boolean;
   isSigningOut?: boolean;
   onSignOut?: () => void;
@@ -31,8 +31,8 @@ interface MarketingHeaderProps {
 export function MarketingHeader({
   accountEmail = '',
   accountImage = null,
+  accountName = '',
   institutionName = '',
-  isSessionLoading = false,
   isSignedIn = false,
   isSigningOut = false,
   onSignOut,
@@ -95,15 +95,14 @@ export function MarketingHeader({
         </nav>
 
         <div className="flex items-center gap-2">
-          {isSessionLoading ? (
-            <span aria-hidden className="block size-12 rounded-full bg-divider" />
-          ) : isSignedIn ? (
+          {isSignedIn ? (
             <AccountMenu
               email={accountEmail}
               image={accountImage}
               institutionName={institutionName}
               isSigningOut={isSigningOut}
               onSignOut={() => onSignOut?.()}
+              userName={accountName}
             />
           ) : (
             <div className="hidden items-center gap-2 md:flex">
@@ -155,7 +154,7 @@ export function MarketingHeader({
               {label}
             </NavLink>
           ))}
-          {!isSignedIn && !isSessionLoading && (
+          {!isSignedIn && (
             <div className="mt-2 grid gap-2 border-t-2 border-divider pt-3">
               <Link className={buttonClassName('secondary', 'w-full')} onClick={closeMenu} to={ROUTES.login}>
                 Masuk
@@ -219,8 +218,8 @@ export function MarketingPage({ children }: { children: ReactNode }) {
       <MarketingHeader
         accountEmail={user?.user.email ?? ''}
         accountImage={user?.user.image ?? null}
+        accountName={user?.user.name ?? ''}
         institutionName={user?.institution.name ?? ''}
-        isSessionLoading={session.isPending}
         isSignedIn={Boolean(user)}
         isSigningOut={signOut.isPending}
         onSignOut={() => {

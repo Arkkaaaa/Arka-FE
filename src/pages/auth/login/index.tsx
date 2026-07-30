@@ -76,7 +76,7 @@ export function LoginPage() {
     try {
       await signIn.mutateAsync(parsed.data);
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.session });
-      navigate(ROUTES.dashboard, { replace: true });
+       navigate(ROUTES.onboarding, { replace: true });
     } catch (error) {
       setFormError(messageOf(error));
     }

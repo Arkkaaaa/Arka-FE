@@ -1,8 +1,8 @@
-# Jalin Frontend
+# Arka Frontend
 
-Jalin Frontend adalah aplikasi React/Vite untuk pengasuh institusi. Aplikasi ini menyediakan landing page, autentikasi, onboarding, dashboard, kesiapan perangkat, pemilihan mode latihan, dan tampilan hasil/aktivitas yang dikirim backend.
+Arka Frontend adalah aplikasi React/Vite untuk pengasuh institusi. Aplikasi ini menyediakan landing page, autentikasi, onboarding, dashboard, kesiapan perangkat, pemilihan mode latihan, dan tampilan hasil/aktivitas yang dikirim backend.
 
-Browser tidak terhubung langsung ke PostgreSQL, Redis, Ollama, atau ESP32. Request HTTP dan WebSocket diarahkan ke Jalin Backend.
+Browser tidak terhubung langsung ke PostgreSQL, Redis, Ollama, atau ESP32. Request HTTP dan WebSocket diarahkan ke Arka Backend.
 
 ## Technology Stack
 
@@ -61,7 +61,7 @@ Nilai `VITE_*` bersifat publik. Secret database, Better Auth, device, Redis, Oll
 ### Prerequisites
 
 - Node.js dan npm
-- Jalin Backend berjalan pada `VITE_BACKEND_URL`
+- Arka Backend berjalan pada `VITE_BACKEND_URL`
 
 ### Installation
 
@@ -102,4 +102,4 @@ src/
 
 ## Backend Contract
 
-Frontend hanya merender DTO, snapshot, dan event yang disahkan backend. Frontend tidak boleh menjadi sumber kebenaran untuk timer, scoring, participant identity, session finalization, atau device command. Perubahan kontrak harus disinkronkan dengan `Jalin-BE` dan dokumentasi `docs/browser-api.md`.
+Frontend hanya merender DTO, snapshot, dan event yang disahkan backend. Frontend tidak boleh menjadi sumber kebenaran untuk timer, scoring, participant identity, session finalization, atau device command. Perubahan kontrak harus disinkronkan dengan Arka Backend di direktori `Jalin-BE` dan dokumentasi `docs/browser-api.md`.

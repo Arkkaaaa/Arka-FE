@@ -1,11 +1,25 @@
 import type { GameMode } from '@/schemas';
 
+const GAME_MODE_SLUGS: Record<GameMode, string> = {
+  MOTOR_GRIP: 'motor-grip',
+  GO_NO_GO: 'go-no-go',
+  SEQUENCE_MEMORY: 'sequence-memory',
+};
+
+export function gameModeFromSlug(slug: string | undefined): GameMode | null {
+  if (!slug) return null;
+  const match = Object.entries(GAME_MODE_SLUGS).find(([, value]) => value === slug);
+  return (match?.[0] as GameMode | undefined) ?? null;
+}
+
 export const ROUTES = {
   landing: '/',
   login: '/login',
   register: '/register',
   onboarding: '/onboarding',
   dashboard: '/dashboard',
+  progressBoard: '/progress-board',
+  profile: '/profile',
   mission: '/mission',
   faq: '/faq',
   contact: '/contact',
@@ -14,9 +28,9 @@ export const ROUTES = {
   participant: (participantId: string) => `/participants/${encodeURIComponent(participantId)}`,
   participantHistory: (participantId: string) =>
     `/participants/${encodeURIComponent(participantId)}/history`,
-  participantEntry: (mode: GameMode) => `/play/${mode}/participant`,
-  tutorial: (mode: GameMode) => `/play/${mode}/tutorial`,
-  setup: (mode: GameMode) => `/play/${mode}/setup`,
+  participantEntry: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/participant`,
+  tutorial: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/tutorial`,
+  setup: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/setup`,
   session: (sessionId: string) => `/sessions/${encodeURIComponent(sessionId)}`,
   result: (sessionId: string) => `/results/${encodeURIComponent(sessionId)}`,
 } as const;

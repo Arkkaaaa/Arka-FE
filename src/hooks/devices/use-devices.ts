@@ -6,10 +6,11 @@ import {
 } from '../../api/devices.ts';
 import { QUERY_KEYS } from '../../constants/query-keys.ts';
 
-export function useDevicesQuery() {
+export function useDevicesQuery(enabled = true) {
   return useQuery({
     queryKey: QUERY_KEYS.devices.all,
     queryFn: getDevices,
+    enabled,
   });
 }
 

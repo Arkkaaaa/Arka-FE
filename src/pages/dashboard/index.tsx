@@ -1,121 +1,143 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect } from 'react';
+import { ArrowRight, BarChart3, CalendarDays, TrendingUp, UsersRound } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { m, useReducedMotion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { GameMetrics, GameMode } from '../../schemas/index.ts';
-import {
-  athletesTrainingIllustration,
-  eyesEmoji,
-  mindfulnessIllustration,
-  musicalNotesEmoji,
-  retroVideoGameIllustration,
-  tangerineEmoji,
-} from '../../assets/index.ts';
-import { AccountMenu, Brand, Button, Field } from '../../components/index.ts';
+import type { DashboardActivityDto } from '../../schemas/index.ts';
+import { AccountHeader, Button } from '../../components/index.ts';
 import { ApiError, messageOf } from '../../config/api-client.ts';
+import { GAME_MODES } from '../../constants/game-modes.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useDashboardActivityQuery } from '../../hooks/dashboard/use-dashboard-activity-query.ts';
-import { useDashboardSummaryQuery } from '../../hooks/dashboard/use-dashboard-summary-query.ts';
-import { useResolveParticipantMutation } from '../../hooks/participants/use-participant-mutations.ts';
-import {
-  useParticipantLeaderboardQuery,
-  useParticipantQuery,
-} from '../../hooks/participants/use-participant-queries.ts';
 import { useSessionQuery } from '../../hooks/auth/use-session-query.ts';
 import { useSignOutMutation } from '../../hooks/auth/use-sign-out-mutation.ts';
 
-const MODES = [
-  {
-    mode: 'MOTOR_GRIP',
-    title: 'Peras Jeruk',
-    detail: 'Latihan menggenggam dan mempertahankan genggaman yang nyaman.',
-    device: 'Genggam alat',
-    illustration: athletesTrainingIllustration,
-    emoji: tangerineEmoji,
-  },
-  {
-    mode: 'GO_NO_GO',
-    title: 'Tangkap Wayang',
-    detail: 'Latihan perhatian dengan menggenggam hanya saat Wayang muncul.',
-    device: 'Genggam alat',
-    illustration: mindfulnessIllustration,
-    emoji: eyesEmoji,
-  },
-  {
-    mode: 'SEQUENCE_MEMORY',
-    title: 'Ding Dong Dong',
-    detail: 'Latihan mengingat urutan melalui empat tombol fisik.',
-    device: 'Empat tombol fisik',
-    illustration: retroVideoGameIllustration,
-    emoji: musicalNotesEmoji,
-  },
-] as const;
+const EMPTY_MODES: DashboardActivityDto['modes'] = GAME_MODES.map((mode) => ({
+  mode: mode.mode,
+  savedSessions: 0,
+  sessionsLast7Days: 0,
+  latestSavedAt: null,
+  latestRuleVersion: null,
+}));
 
-function modeFrom(value: string | null): GameMode {
-  return value === 'GO_NO_GO' || value === 'SEQUENCE_MEMORY' ? value : 'MOTOR_GRIP';
+function emptyDailySeries(): DashboardActivityDto['dailySavedSessions'] {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, index) => ({
+    date: new Date(today.getTime() - (6 - index) * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10),
+    savedSessions: 0,
+  }));
 }
 
-function dateLabel(value: string | null): string {
-  if (!value) return 'Belum ada sesi tersimpan';
-  return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+function dayLabel(date: string): string {
+  return new Intl.DateTimeFormat('id-ID', { weekday: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00.000Z`),
+  );
 }
 
-function metricLabel(metrics: GameMetrics): string {
-  if (metrics.mode === 'MOTOR_GRIP') {
-    return `${metrics.peakGripPercent}% genggaman puncak · ${(metrics.continuousHoldMs / 1000).toFixed(1)} detik tahanan`;
-  }
-  if (metrics.mode === 'GO_NO_GO') {
-    return `${metrics.accuracyPercent}% akurasi · ${metrics.falsePositives} respons non-target`;
-  }
-  return `${metrics.maxSequenceLength} urutan terpanjang · ${metrics.completedLevels} level selesai`;
-}
+function ActivityLineChart({ series }: { series: DashboardActivityDto['dailySavedSessions'] }) {
+  const width = 720;
+  const height = 260;
+  const left = 34;
+  const right = 18;
+  const top = 20;
+  const bottom = 42;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const maxValue = Math.max(...series.map((day) => day.savedSessions), 1);
+  const points = series.map((day, index) => ({
+    ...day,
+    x: left + (index / Math.max(series.length - 1, 1)) * plotWidth,
+    y: top + plotHeight - (day.savedSessions / maxValue) * plotHeight,
+  }));
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const area = `${left},${top + plotHeight} ${line} ${left + plotWidth},${top + plotHeight}`;
+  const total = series.reduce((sum, day) => sum + day.savedSessions, 0);
 
-function DashboardSummarySkeleton() {
   return (
-    <div aria-busy="true" aria-label="Memuat kesiapan perangkat" className="rounded-md border-2 border-divider p-5">
-      <span className="sr-only" role="status">Memuat kesiapan perangkat…</span>
-      <div aria-hidden className="grid gap-3 motion-safe:animate-pulse">
-        <div className="h-6 w-44 rounded-sm bg-divider" />
-        <div className="h-8 w-64 max-w-full rounded-sm bg-divider" />
+    <div className="overflow-hidden rounded-md border-2 border-divider bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">7 hari terakhir</p>
+          <h3 className="mt-2 mb-0 text-2xl font-black">Aktivitas sesi harian</h3>
+        </div>
+        <p className="m-0 text-right"><strong className="block text-3xl font-black">{total}</strong><span className="text-sm font-bold text-muted">sesi selesai</span></p>
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        <svg
+          aria-label={`Grafik garis sesi harian tujuh hari terakhir. Total ${total} sesi.`}
+          className="h-auto min-w-[34rem] w-full"
+          role="img"
+          viewBox={`0 0 ${width} ${height}`}
+        >
+          {[0, 0.5, 1].map((ratio) => {
+            const y = top + plotHeight * ratio;
+            return <line key={ratio} stroke="#e7e3d7" strokeWidth="2" x1={left} x2={left + plotWidth} y1={y} y2={y} />;
+          })}
+          <defs>
+            <linearGradient id="activity-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#f3c642" stopOpacity="0.24" />
+              <stop offset="100%" stopColor="#f3c642" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <polygon fill="url(#activity-area)" points={area} />
+          <polyline fill="none" points={line} stroke="#956000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
+          {points.map((point) => (
+            <g key={point.date}>
+              <circle cx={point.x} cy={point.y} fill="#f3c642" r="7" stroke="#956000" strokeWidth="3" />
+              <text fill="#171711" fontSize="14" fontWeight="800" textAnchor="middle" x={point.x} y={point.y - 15}>{point.savedSessions}</text>
+              <text fill="#625f54" fontSize="14" fontWeight="700" textAnchor="middle" x={point.x} y={height - 12}>{dayLabel(point.date)}</text>
+            </g>
+          ))}
+        </svg>
       </div>
     </div>
   );
 }
 
-function ActivitySkeleton() {
+function ModeBreakdown({ modes }: { modes: DashboardActivityDto['modes'] }) {
+  const maxValue = Math.max(...modes.map((mode) => mode.sessionsLast7Days), 1);
+
   return (
-    <div aria-busy="true" aria-label="Memuat aktivitas institusi" className="grid gap-4 sm:grid-cols-3">
-      <span className="sr-only" role="status">Memuat aktivitas institusi…</span>
-      {[0, 1, 2].map((slot) => (
-        <div aria-hidden className="h-28 rounded-md border-2 border-divider bg-canvas motion-safe:animate-pulse" key={slot} />
-      ))}
+    <div className="rounded-md border-2 border-divider bg-white p-5 sm:p-6">
+      <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Per mode</p>
+      <h3 className="mt-2 mb-0 text-2xl font-black">Sesi minggu ini</h3>
+      <div className="mt-7 grid gap-6">
+        {modes.map((entry) => {
+          const mode = GAME_MODES.find((item) => item.mode === entry.mode)!;
+          const width = entry.sessionsLast7Days === 0
+            ? 0
+            : Math.max((entry.sessionsLast7Days / maxValue) * 100, 8);
+          return (
+            <div key={entry.mode}>
+              <div className="flex items-center justify-between gap-4">
+                <span className="flex min-w-0 items-center gap-3 font-black">
+                  <img alt="" aria-hidden className="size-9 shrink-0" src={mode.emoji} />
+                  <span className="truncate">{mode.title}</span>
+                </span>
+                <strong className="text-2xl">{entry.sessionsLast7Days}</strong>
+              </div>
+              <div aria-hidden className="mt-3 h-3 overflow-hidden rounded-full bg-divider">
+                <div className="h-full rounded-full bg-brand" style={{ width: `${width}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const reduceMotion = useReducedMotion();
-  const codeRef = useRef<HTMLInputElement>(null);
   const session = useSessionQuery();
   const signOut = useSignOutMutation();
-  const summary = useDashboardSummaryQuery(Boolean(session.data));
   const activity = useDashboardActivityQuery(Boolean(session.data));
-  const selectedMode = modeFrom(searchParams.get('mode'));
-  const selectedActivity = activity.data?.modes.find((entry) => entry.mode === selectedMode);
-  const [participantReference, setParticipantReference] = useState('');
-  const [participantId, setParticipantId] = useState<string>();
-  const [participantError, setParticipantError] = useState('');
-  const resolveParticipant = useResolveParticipantMutation(session.data?.csrfToken ?? '');
-  const participant = useParticipantQuery(participantId);
-  const leaderboard = useParticipantLeaderboardQuery(
-    participantId,
-    selectedMode,
-    selectedActivity?.latestRuleVersion ?? undefined,
-  );
+  const activityData = activity.data;
+  const modes = activityData?.modes ?? EMPTY_MODES;
+  const dailySeries = activityData?.dailySavedSessions ?? emptyDailySeries();
 
   useEffect(() => {
     if (session.error instanceof ApiError && session.error.status === 401) {
@@ -127,214 +149,80 @@ export function DashboardPage() {
     if (signOut.isSuccess) navigate(ROUTES.landing, { replace: true });
   }, [navigate, signOut.isSuccess]);
 
-  async function handleParticipant(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const reference = participantReference.trim();
-    if (reference.length < 2) {
-      setParticipantError('Masukkan kode peserta fasilitas.');
-      requestAnimationFrame(() => codeRef.current?.focus());
-      return;
-    }
-    setParticipantError('');
-    try {
-      const result = await resolveParticipant.mutateAsync({ participantReference: reference });
-      setParticipantId(result.participantId);
-    } catch (error) {
-      setParticipantId(undefined);
-      setParticipantError(messageOf(error));
-      requestAnimationFrame(() => codeRef.current?.focus());
-    }
-  }
-
   const institution = session.data?.institution.name ?? 'Institusi Arka';
-  const selected = MODES.find((item) => item.mode === selectedMode) ?? MODES[0];
+  const metrics = [
+    { label: 'Peserta aktif', value: activityData?.activeParticipants ?? 0, icon: UsersRound },
+    { label: 'Total sesi', value: activityData?.savedSessionsTotal ?? 0, icon: BarChart3 },
+    { label: '7 hari terakhir', value: activityData?.savedSessionsLast7Days ?? 0, icon: CalendarDays },
+  ];
 
   return (
-    <div className="min-h-dvh bg-canvas text-ink">
+    <div className="min-h-dvh bg-white text-ink">
       <a className="skip-link" href="#dashboard-main">Lewati ke konten utama</a>
-      <header className="border-b-2 border-divider bg-white">
-        <div className="mx-auto flex min-h-20 w-full max-w-[78rem] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <Brand compact />
-          {session.data ? (
-            <AccountMenu
-              email={session.data.user.email}
-              image={session.data.user.image}
-              institutionName={session.data.institution.name}
-              isSigningOut={signOut.isPending}
-              onSignOut={() => signOut.mutate(session.data!)}
-            />
-          ) : (
-            <span aria-hidden className="block size-12 rounded-full bg-divider" />
-          )}
-        </div>
-      </header>
+      <AccountHeader
+        isSigningOut={signOut.isPending}
+        onSignOut={() => {
+          if (session.data) signOut.mutate(session.data);
+        }}
+        user={session.data}
+      />
       {signOut.isError && (
-        <p className="mx-auto w-full max-w-[78rem] px-4 pt-4 text-base font-bold text-danger sm:px-6 lg:px-8" role="alert">
-          {messageOf(signOut.error)}
-        </p>
+        <p className="mx-auto w-full max-w-[78rem] px-4 pt-4 text-base font-bold text-danger sm:px-6 lg:px-8" role="alert">{messageOf(signOut.error)}</p>
       )}
 
       <main className="mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12" id="dashboard-main" tabIndex={-1}>
         <m.section
           animate={{ opacity: 1, y: 0 }}
-          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.4 }}
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.35 }}
         >
-          <p className="landing-eyebrow">Beranda institusi</p>
+          <p className="landing-eyebrow">Dashboard caregiver</p>
           <h1 className="m-0 max-w-3xl text-4xl font-black tracking-[-0.05em] sm:text-5xl">Selamat datang, {institution}</h1>
-          <p className="mt-4 mb-0 max-w-2xl text-lg leading-8 text-muted">Pilih latihan, periksa kesiapan alat, atau tinjau aktivitas permainan yang sudah tersimpan.</p>
+          <p className="mt-3 mb-0 max-w-2xl text-lg leading-8 text-muted">Mulai latihan dan pantau aktivitas rehabilitasi dari satu tempat.</p>
         </m.section>
 
-        <section className="mt-10" aria-labelledby="mode-title">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="mode-title">Pilih latihan</h2>
-              <p className="mt-2 mb-0 text-lg text-muted">Satu mode dipilih untuk analisis dan papan skor peserta.</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {MODES.map((mode) => {
-              const active = mode.mode === selectedMode;
-              return (
-                <article className={`overflow-hidden rounded-md border-2 bg-white shadow-[0_5px_0_#d9d4c5] ${active ? 'border-brand-ink' : 'border-divider'}`} key={mode.mode}>
-                  <div className="grid h-44 place-items-center bg-brand-soft p-4">
-                    <img alt="" aria-hidden className="max-h-36 w-full object-contain" src={mode.illustration} />
-                  </div>
-                  <div className="p-5">
-                    <img alt="" aria-hidden className="size-14" src={mode.emoji} />
-                    <h3 className="mt-4 mb-0 text-2xl font-black">{mode.title}</h3>
-                    <p className="mt-2 mb-0 min-h-14 text-lg leading-7 text-muted">{mode.detail}</p>
-                    <p className="mt-4 mb-0 text-base font-bold text-ink">Perangkat: {mode.device}</p>
-                    <Button
-                      aria-pressed={active}
-                      className="mt-5 w-full"
-                      onClick={() => {
-                        setSearchParams({ mode: mode.mode });
-                        setParticipantId(undefined);
-                      }}
-                      variant={active ? 'dark' : 'primary'}
-                    >
-                      {active ? 'Mode dipilih' : 'Pilih mode'}
-                    </Button>
-                  </div>
-                </article>
-              );
-            })}
+        <section className="mt-10" aria-label="Mode latihan">
+          <div className="grid items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {GAME_MODES.map((mode) => (
+              <article className="flex h-full flex-col overflow-hidden rounded-md border-2 border-divider bg-white" key={mode.mode}>
+                <div className="grid h-40 place-items-center bg-gradient-to-br from-[#f5f6f8] via-white to-[#f1f3f6] p-4"><img alt="" aria-hidden className="max-h-32 w-full object-contain" src={mode.illustration} /></div>
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="flex items-center gap-3"><img alt="" aria-hidden className="size-11" src={mode.emoji} /><h3 className="m-0 text-2xl font-black">{mode.title}</h3></div>
+                  <p className="mt-3 mb-0 flex-1 text-base leading-7 text-muted">{mode.detail}</p>
+                  <p className="mt-4 mb-0 text-sm font-black text-muted">{mode.device}</p>
+                  <Button className="mt-5 w-full" onClick={() => navigate(ROUTES.participantEntry(mode.mode))}>Buka mode</Button>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section className="mt-12 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]" aria-label="Kesiapan dan aktivitas">
+        <section className="mt-12" aria-labelledby="activity-title">
           <div>
-            <h2 className="m-0 text-3xl font-black tracking-[-0.04em]">Kesiapan alat</h2>
-            <div className="mt-5">
-              {summary.isPending ? (
-                <DashboardSummarySkeleton />
-              ) : summary.isError ? (
-                <div className="rounded-md border-2 border-danger bg-danger-soft p-5">
-                  <p className="m-0 text-lg font-bold text-danger">Kesiapan alat belum dapat dimuat.</p>
-                  <Button className="mt-4" onClick={() => void summary.refetch()} variant="secondary">Coba lagi</Button>
-                </div>
-              ) : (
-                <div className="rounded-md border-2 border-divider bg-white p-5 shadow-[0_4px_0_#d9d4c5]">
-                  <p className="m-0 text-2xl font-black">{summary.data?.readinessMessage}</p>
-                  <dl className="mt-5 grid grid-cols-3 gap-3">
-                    <div><dt className="text-base text-muted">Siap</dt><dd className="m-0 text-3xl font-black">{summary.data?.readyDevices}</dd></div>
-                    <div><dt className="text-base text-muted">Online</dt><dd className="m-0 text-3xl font-black">{summary.data?.onlineDevices}</dd></div>
-                    <div><dt className="text-base text-muted">Aktif</dt><dd className="m-0 text-3xl font-black">{summary.data?.totalActiveDevices}</dd></div>
-                  </dl>
-                </div>
-              )}
-            </div>
+            <p className="landing-eyebrow">Pemantauan</p>
+            <h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="activity-title">Aktivitas institusi</h2>
+            <p className="mt-2 mb-0 text-lg text-muted">Ringkasan sesi yang berhasil disimpan.</p>
           </div>
-
-          <div>
-            <h2 className="m-0 text-3xl font-black tracking-[-0.04em]">Aktivitas permainan</h2>
-            <p className="mt-2 mb-0 text-lg text-muted">Catatan faktual institusi—bukan diagnosis atau ukuran kemampuan klinis.</p>
-            <div className="mt-5">
-              {activity.isPending ? (
-                <ActivitySkeleton />
-              ) : activity.isError ? (
-                <div className="rounded-md border-2 border-danger bg-danger-soft p-5">
-                  <p className="m-0 text-lg font-bold text-danger">Aktivitas belum dapat dimuat.</p>
-                  <Button className="mt-4" onClick={() => void activity.refetch()} variant="secondary">Coba lagi</Button>
-                </div>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-md border-2 border-divider bg-white p-5"><p className="m-0 text-base text-muted">Peserta aktif</p><p className="mt-2 mb-0 text-4xl font-black">{activity.data?.activeParticipants}</p></div>
-                  <div className="rounded-md border-2 border-divider bg-white p-5"><p className="m-0 text-base text-muted">Sesi tersimpan</p><p className="mt-2 mb-0 text-4xl font-black">{activity.data?.savedSessionsTotal}</p></div>
-                  <div className="rounded-md border-2 border-divider bg-white p-5"><p className="m-0 text-base text-muted">7 hari terakhir</p><p className="mt-2 mb-0 text-4xl font-black">{activity.data?.savedSessionsLast7Days}</p></div>
-                </div>
-              )}
-            </div>
+          {activity.isError && <p className="mt-4 mb-0 flex items-center gap-2 text-base font-semibold text-muted" role="status"><BarChart3 aria-hidden className="size-5" />Data terbaru belum tersedia. Grafik menampilkan nilai kosong.</p>}
+          <div className="mt-6 flex gap-4 overflow-x-auto pb-1">
+            {metrics.map(({ label, value, icon: Icon }) => (
+              <div className="flex min-w-56 flex-1 items-center gap-4 rounded-md border-2 border-divider p-5" key={label}>
+                <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-divider/70"><Icon className="size-5" /></span>
+                <div><p className="m-0 text-sm font-bold text-muted">{label}</p><p className="mt-1 mb-0 text-3xl font-black">{value}</p></div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.65fr_0.85fr]">
+            <ActivityLineChart series={dailySeries} />
+            <ModeBreakdown modes={modes} />
           </div>
         </section>
 
-        <section className="mt-12 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]" aria-labelledby="analysis-title">
-          <div className="rounded-md border-2 border-divider bg-white p-6 shadow-[0_5px_0_#d9d4c5]">
-            <div className="flex items-center gap-4">
-              <img alt="" aria-hidden className="size-16" src={selected.emoji} />
-              <div>
-                <p className="m-0 text-base font-bold text-muted">Mode dipilih</p>
-                <h2 className="m-0 text-3xl font-black" id="analysis-title">{selected.title}</h2>
-              </div>
-            </div>
-            <dl className="mt-6 grid gap-4">
-              <div><dt className="text-base text-muted">Sesi tersimpan</dt><dd className="m-0 text-3xl font-black">{selectedActivity?.savedSessions ?? 0}</dd></div>
-              <div><dt className="text-base text-muted">Sesi 7 hari terakhir</dt><dd className="m-0 text-3xl font-black">{selectedActivity?.sessionsLast7Days ?? 0}</dd></div>
-              <div><dt className="text-base text-muted">Terakhir dimainkan</dt><dd className="m-0 text-lg font-bold">{dateLabel(selectedActivity?.latestSavedAt ?? null)}</dd></div>
-            </dl>
-          </div>
-
-          <div className="rounded-md border-2 border-divider bg-white p-6 shadow-[0_5px_0_#d9d4c5]">
-            <h2 className="m-0 text-3xl font-black tracking-[-0.04em]">Papan skor privat peserta</h2>
-            <p className="mt-3 mb-0 text-lg leading-8 text-muted">Masukkan kode peserta. Peringkat hanya membandingkan sesi peserta yang sama pada {selected.title} dan versi aturan yang sama.</p>
-            <form className="mt-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end" noValidate onSubmit={handleParticipant}>
-              <Field
-                autoComplete="off"
-                error={participantError}
-                inputRef={codeRef}
-                label="Kode peserta fasilitas"
-                name="participantReference"
-                onChange={(event) => {
-                  setParticipantReference(event.target.value);
-                  if (participantError) setParticipantError('');
-                }}
-                placeholder="Contoh: PST-001"
-                value={participantReference}
-              />
-              <Button disabled={!session.data || resolveParticipant.isPending} type="submit">{resolveParticipant.isPending ? 'Mencari…' : 'Lihat papan skor'}</Button>
-            </form>
-
-            {participantId && !selectedActivity?.latestRuleVersion && (
-              <p className="mt-6 mb-0 rounded-sm bg-brand-soft p-4 text-lg font-bold">Belum ada sesi tersimpan untuk mode ini.</p>
-            )}
-            {leaderboard.isPending && participantId && selectedActivity?.latestRuleVersion && (
-              <p aria-live="polite" className="mt-6 text-lg font-bold text-muted" role="status">Memuat papan skor…</p>
-            )}
-            {leaderboard.isError && (
-              <div className="mt-6 rounded-sm bg-danger-soft p-4"><p className="m-0 text-lg font-bold text-danger">Papan skor belum dapat dimuat.</p><Button className="mt-3" onClick={() => void leaderboard.refetch()} variant="secondary">Coba lagi</Button></div>
-            )}
-            {leaderboard.data && participant.data && (
-              <div className="mt-7">
-                <h3 className="m-0 text-2xl font-black">Papan Skor {participant.data.displayName}</h3>
-                <p className="mt-2 mb-0 text-base text-muted">Versi aturan: {leaderboard.data.ruleVersion}. Skor permainan bukan nilai klinis.</p>
-                {leaderboard.data.entries.length === 0 ? (
-                  <p className="mt-5 mb-0 rounded-sm bg-brand-soft p-4 text-lg font-bold">Belum ada hasil tersimpan untuk peserta ini.</p>
-                ) : (
-                  <ol className="mt-5 grid list-none gap-3 p-0">
-                    {leaderboard.data.entries.map((entry) => (
-                      <li className="grid gap-2 rounded-sm border-2 border-divider p-4 sm:grid-cols-[4rem_1fr_auto] sm:items-center" key={entry.sessionId}>
-                        <span className="text-2xl font-black">#{entry.rank}</span>
-                        <div><p className="m-0 text-lg font-black">{dateLabel(entry.completedAt)}</p><p className="mt-1 mb-0 text-base leading-6 text-muted">{metricLabel(entry.metrics)}</p></div>
-                        <p className="m-0 text-lg font-bold">Skor permainan: <span className="text-3xl font-black">{entry.score}</span></p>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+        <Link className="mt-8 grid gap-5 rounded-md border-2 border-ink bg-ink p-6 text-white no-underline transition-colors hover:bg-ink-soft sm:grid-cols-[auto_1fr_auto] sm:items-center" to={ROUTES.progressBoard}>
+          <span aria-hidden className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-brand to-[#ffdc75] text-ink"><TrendingUp className="size-7" /></span>
+          <span><strong className="block text-2xl font-black">Buka Progress Board</strong><span className="mt-1 block text-base leading-7 text-white/75">Pantau konsistensi, perkembangan, dan pencapaian setiap peserta.</span></span>
+          <ArrowRight aria-hidden className="size-7" />
+        </Link>
       </main>
     </div>
   );

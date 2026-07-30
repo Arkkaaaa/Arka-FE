@@ -79,9 +79,7 @@ export function useSessionSocket(sessionId: string | null) {
         setMessage(next);
         if (
           next.type === 'session.snapshot' &&
-          ['ABORTED', 'INTERRUPTED', 'COMPLETED', 'SAVING', 'SAVED', 'SAVE_FAILED'].includes(
-            next.payload.status,
-          )
+            ['ABORTED', 'INTERRUPTED', 'SAVED', 'SAVE_FAILED'].includes(next.payload.status)
         ) {
           socketRef.current = null;
           connection.close();

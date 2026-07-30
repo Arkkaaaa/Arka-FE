@@ -91,8 +91,8 @@ const REVEAL = {
 interface LandingContentProps {
   accountEmail: string;
   accountImage: string | null;
+  accountName: string;
   institutionName: string;
-  isSessionLoading: boolean;
   isSignedIn: boolean;
   isSigningOut: boolean;
   onSignOut: () => void;
@@ -102,8 +102,8 @@ interface LandingContentProps {
 export function LandingContent({
   accountEmail,
   accountImage,
+  accountName,
   institutionName,
-  isSessionLoading,
   isSignedIn,
   isSigningOut,
   onSignOut,
@@ -121,8 +121,8 @@ export function LandingContent({
       <MarketingHeader
         accountEmail={accountEmail}
         accountImage={accountImage}
+        accountName={accountName}
         institutionName={institutionName}
-        isSessionLoading={isSessionLoading}
         isSignedIn={isSignedIn}
         isSigningOut={isSigningOut}
         onSignOut={onSignOut}
@@ -164,11 +164,6 @@ export function LandingContent({
                   Lihat latihan
                   <ArrowRight aria-hidden className="size-5" />
                 </a>
-              ) : isSessionLoading ? (
-                <span
-                  aria-hidden="true"
-                  className="mt-8 inline-block h-12 w-44 rounded-xl bg-ink/10"
-                />
               ) : (
                 <Link className={buttonClassName('dark', 'mt-8')} to={ROUTES.register}>
                   Mulai sekarang

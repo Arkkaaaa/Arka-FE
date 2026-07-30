@@ -1,10 +1,18 @@
-import { DashboardActivityDtoSchema, DashboardSummaryDtoSchema } from '@/schemas';
+import {
+  DashboardActivityDtoSchema,
+  DashboardProgressDtoSchema,
+  DashboardSummaryDtoSchema,
+} from '@/schemas';
 import type { z } from 'zod';
 import { apiGet } from '../config/api-client.ts';
 import { API_ENDPOINTS } from '../constants/api.ts';
 
 export function getDashboardActivity(): Promise<z.infer<typeof DashboardActivityDtoSchema>> {
   return apiGet(API_ENDPOINTS.dashboard.activity, DashboardActivityDtoSchema);
+}
+
+export function getDashboardProgress(): Promise<z.infer<typeof DashboardProgressDtoSchema>> {
+  return apiGet(API_ENDPOINTS.dashboard.progress, DashboardProgressDtoSchema);
 }
 
 export function getDashboardSummary(): Promise<z.infer<typeof DashboardSummaryDtoSchema>> {

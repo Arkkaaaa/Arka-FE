@@ -1,33 +1,20 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from 'framer-motion';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from './config/api-client.ts';
 import { useSessionQuery } from './hooks/auth/use-session-query.ts';
-import { ROUTES } from './constants/routes.ts';
-const LandingPage = lazy(() =>
-  import('./pages/landing/index.tsx').then((module) => ({ default: module.LandingPage })),
-);
-const LoginPage = lazy(() =>
-  import('./pages/auth/login/index.tsx').then((module) => ({ default: module.LoginPage })),
-);
-const RegisterPage = lazy(() =>
-  import('./pages/auth/register/index.tsx').then((module) => ({ default: module.RegisterPage })),
-);
-const ContactPage = lazy(() =>
-  import('./pages/contact/index.tsx').then((module) => ({ default: module.ContactPage })),
-);
-const DashboardPage = lazy(() =>
-  import('./pages/dashboard/index.tsx').then((module) => ({ default: module.DashboardPage })),
-);
-const FaqPage = lazy(() =>
-  import('./pages/faq/index.tsx').then((module) => ({ default: module.FaqPage })),
-);
-const MissionPage = lazy(() =>
-  import('./pages/mission/index.tsx').then((module) => ({ default: module.MissionPage })),
-);
-const OnboardingPage = lazy(() =>
-  import('./pages/onboarding/index.tsx').then((module) => ({ default: module.OnboardingPage })),
-);
+import { ROUTES, ROUTE_PATTERNS } from './constants/routes.ts';
+import { LoginPage } from './pages/auth/login/index.tsx';
+import { RegisterPage } from './pages/auth/register/index.tsx';
+import { ContactPage } from './pages/contact/index.tsx';
+import { DashboardPage } from './pages/dashboard/index.tsx';
+import { FaqPage } from './pages/faq/index.tsx';
+import { GameModePage } from './pages/game-mode/index.tsx';
+import { LandingPage } from './pages/landing/index.tsx';
+import { LeaderboardPage } from './pages/leaderboard/index.tsx';
+import { MissionPage } from './pages/mission/index.tsx';
+import { OnboardingPage } from './pages/onboarding/index.tsx';
+import { ProfilePage } from './pages/profile/index.tsx';
 
 function AuthTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion();
@@ -63,16 +50,6 @@ function OnboardingRedirect() {
   return null;
 }
 
-function PageFallback() {
-  return (
-    <main aria-busy="true" className="grid min-h-dvh place-items-center bg-white px-5">
-      <p className="text-lg font-bold text-muted" role="status">
-        Membuka halaman…
-      </p>
-    </main>
-  );
-}
-
 export function App() {
   const location = useLocation();
 
@@ -86,11 +63,13 @@ export function App() {
   return (
     <LazyMotion features={domAnimation} strict>
       <OnboardingRedirect />
-      <Suspense fallback={<PageFallback />}>
-        <AnimatePresence initial={false} mode="wait">
-          <Routes key={location.pathname} location={location}>
+      <AnimatePresence initial={false} mode="wait">
+        <Routes key={location.pathname} location={location}>
             <Route element={<LandingPage />} path={ROUTES.landing} />
             <Route element={<DashboardPage />} path={ROUTES.dashboard} />
+            <Route element={<LeaderboardPage />} path={ROUTES.progressBoard} />
+            <Route element={<ProfilePage />} path={ROUTES.profile} />
+            <Route element={<GameModePage />} path={ROUTE_PATTERNS.participantEntry} />
             <Route element={<MissionPage />} path={ROUTES.mission} />
             <Route element={<FaqPage />} path={ROUTES.faq} />
             <Route element={<ContactPage />} path={ROUTES.contact} />
@@ -112,9 +91,8 @@ export function App() {
               path={ROUTES.register}
             />
             <Route element={<Navigate replace to={ROUTES.landing} />} path="*" />
-          </Routes>
-        </AnimatePresence>
-      </Suspense>
+        </Routes>
+      </AnimatePresence>
     </LazyMotion>
   );
 }
