@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Gamepad2, Pause, Play } from 'lucide-react';
+import { heartHandsEmoji } from '../../assets/index.ts';
 import { Link } from 'react-router-dom';
 import type { AppServerMessage } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
@@ -113,11 +114,14 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
+  const [abortDialogOpen, setAbortDialogOpen] = useState(false);
   const [muted] = useState(false);
   const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
   const sessionStartingRef = useRef(false);
   const sessionRecoveryRef = useRef<string | null>(null);
   const countdownToneRef = useRef<number | null>(null);
+  const abortButtonRef = useRef<HTMLButtonElement>(null);
+  const abortDialogRef = useRef<HTMLDialogElement>(null);
   const preparation = useCreatePreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
   const persistedSession = useGameSessionQuery(sessionId ?? undefined, {
@@ -216,6 +220,23 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     }
     if (status !== 'COUNTDOWN' && status !== 'PLAYING') countdownToneRef.current = null;
   }, [countdown, muted, status]);
+
+  useEffect(() => {
+    const dialog = abortDialogRef.current;
+    if (!dialog) return;
+    if (abortDialogOpen && !dialog.open) dialog.showModal();
+    if (!abortDialogOpen && dialog.open) dialog.close();
+  }, [abortDialogOpen]);
+
+  function closeAbortDialog() {
+    setAbortDialogOpen(false);
+    requestAnimationFrame(() => abortButtonRef.current?.focus());
+  }
+
+  function confirmAbort() {
+    setAbortDialogOpen(false);
+    sessionSocket.sendCommand('ABORT');
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -366,16 +387,38 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-5">
         <div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">Ding Dong Dong</h1></div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="mr-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-soft px-4 text-sm font-black" aria-label={`Sisa kesempatan ${sessionSnapshot?.visual?.mode === 'SEQUENCE_MEMORY' ? sessionSnapshot.visual.remainingAttempts : 3}`}>
+            <img alt="" aria-hidden className="size-6" src={heartHandsEmoji} />
+            <span>Sisa kesempatan {sessionSnapshot?.visual?.mode === 'SEQUENCE_MEMORY' ? sessionSnapshot.visual.remainingAttempts : 3}</span>
+          </div>
           <Button onClick={() => sessionSocket.sendCommand(status === 'PAUSED' ? 'RESUME' : 'PAUSE')} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button>
-          <Button onClick={() => {
-            if (window.confirm('Sesi tidak akan dihitung sebagai selesai. Akhiri sesi?')) sessionSocket.sendCommand('ABORT');
-          }} variant="danger">Akhiri sesi</Button>
+          <button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button>
         </div>
       </div>
       {sessionError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionError}</p>}
       {status === 'PAUSED' ? (
         <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div>
       ) : sessionSnapshot ? <div className="mt-7"><SequenceBoard snapshot={sessionSnapshot} /></div> : null}
+      <dialog
+        aria-describedby="abort-session-description"
+        aria-labelledby="abort-session-title"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60"
+        onCancel={(event) => {
+          event.preventDefault();
+          closeAbortDialog();
+        }}
+        ref={abortDialogRef}
+        role="alertdialog"
+      >
+        <div className="p-6 sm:p-8">
+          <h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2>
+          <p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button>
+            <Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button>
+          </div>
+        </div>
+      </dialog>
     </section>
   );
 }

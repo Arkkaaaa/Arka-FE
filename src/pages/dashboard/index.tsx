@@ -40,8 +40,8 @@ function ActivityLineChart({ series }: { series: DashboardActivityDto['dailySave
   const width = 720;
   const height = 260;
   const left = 34;
-  const right = 18;
-  const top = 20;
+  const right = 34;
+  const top = 40;
   const bottom = 42;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
