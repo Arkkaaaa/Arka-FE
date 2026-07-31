@@ -112,6 +112,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const [participant, setParticipant] = useState<SequenceParticipantIdentity | null>(null);
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(3);
   const [muted] = useState(false);
   const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
   const sessionStartingRef = useRef(false);
@@ -193,7 +194,14 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     startPreparation();
   }
 
-  const countdown = sessionSnapshot?.countdown ?? 3;
+  useEffect(() => {
+    if (status !== 'COUNTDOWN') {
+      setCountdown(3);
+      return;
+    }
+    const timer = window.setInterval(() => setCountdown((value) => Math.max(1, value - 1)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [status]);
 
   useEffect(() => {
     if (muted) return;
