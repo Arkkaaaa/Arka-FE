@@ -179,10 +179,9 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [completed, setCompleted] = useState(false);
   const [audioError, setAudioError] = useState('');
-  const stateRef = useRef({ step, playing, completed });
-  stateRef.current = { step, playing, completed };
+  const stateRef = useRef({ step, playing });
+  stateRef.current = { step, playing };
   const current = definition.steps[step]!;
   const displayProgress = progress >= 1 ? 1 : 1 - Math.pow(1 - progress, 1.35);
 
@@ -202,7 +201,6 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
       audio.currentTime = 0;
       setProgress(0);
       setCurrentTime(0);
-      setCompleted(false);
     }
     setAudioError('');
     void audio.play().catch(() => {
@@ -218,7 +216,6 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
     audio.src = AUDIO_SOURCES[step]!;
     audio.load();
     setProgress(0);
-    setCompleted(false);
     setAudioError('');
     const start = () => playAudio(true);
     audio.addEventListener('canplay', start, { once: true });
@@ -271,8 +268,8 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
   return (
     <section className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[88rem] flex-col py-2" aria-labelledby="tutorial-title">
       <audio
-        onEnded={() => { setProgress(1); setPlaying(false); setCompleted(true); }}
-        onError={() => { setAudioError('Rekaman tutorial tidak dapat diputar.'); setPlaying(false); setCompleted(true); }}
+        onEnded={() => { setProgress(1); setPlaying(false); }}
+        onError={() => { setAudioError('Rekaman tutorial tidak dapat diputar.'); setPlaying(false); }}
         onPause={() => setPlaying(false)}
         onPlay={() => { setPlaying(true); if (frameRef.current !== null) cancelAnimationFrame(frameRef.current); frameRef.current = requestAnimationFrame(updateProgress); }}
         preload="auto"
@@ -417,10 +414,9 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
               <p className="px-3 py-2 text-xs font-black tracking-[0.08em] text-muted uppercase">Peserta ditemukan</p>
               <ul className="m-0 list-none p-0">
                 {suggestions.map((participant) => (
-                  <li key={participant.participantId}>
-                    <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-sm px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
-                      <span>{participant.displayName}</span>
-                      <Check aria-hidden className="size-5 text-success" />
+                  <li className="border-b-2 border-divider last:border-b-0" key={participant.participantId}>
+                    <button className="flex min-h-12 w-full items-center px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
+                      {participant.displayName}
                     </button>
                   </li>
                 ))}

@@ -7,7 +7,6 @@ import { gameModeFromSlug, ROUTES } from '../../constants/routes.ts';
 import { useAccountPage } from '../../hooks/auth/use-account-page.ts';
 import { useDevicesQuery } from '../../hooks/devices/use-devices.ts';
 import { SequenceMemoryFlow, type SequenceMemoryStage } from './sequence-memory-flow.tsx';
-import { resolveGameModeSurface } from './route-flow.ts';
 
 export function GameModePage() {
   const { mode: modeSlug } = useParams();
@@ -23,14 +22,14 @@ export function GameModePage() {
   );
   const readyDevices = compatibleDevices.filter((device) => device.readinessCode === 'READY').length;
   const onlineDevices = compatibleDevices.filter((device) => device.connectionStatus === 'ONLINE').length;
-  const surface = resolveGameModeSurface(mode, Boolean(session.data));
-  const immersiveTutorial = surface === 'sequence-flow' && sequenceStage === 'tutorial';
-  const immersiveSession = surface === 'sequence-flow' && (sequenceStage === 'setup' || sequenceStage === 'session');
+  const sequenceFlow = mode === 'SEQUENCE_MEMORY';
+  const immersiveTutorial = sequenceFlow && sequenceStage === 'tutorial';
+  const immersiveSession = sequenceFlow && (sequenceStage === 'setup' || sequenceStage === 'session');
   const hideSequenceChrome = immersiveTutorial || immersiveSession;
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
-      {surface === 'sequence-flow' && sequenceStage === 'participant' && <div aria-hidden className="landing-glow landing-glow-soft -top-36 -right-40 size-[34rem]" />}
+      {sequenceFlow && sequenceStage === 'participant' && <div aria-hidden className="landing-glow landing-glow-soft -top-36 -right-40 size-[34rem]" />}
       {!hideSequenceChrome && <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>}
       {!hideSequenceChrome && (
         <AccountHeader
@@ -53,7 +52,7 @@ export function GameModePage() {
           </Link>
         )}
 
-        {surface === 'sequence-flow' ? (
+        {sequenceFlow ? (
              <div className={hideSequenceChrome ? '' : 'mt-8'}>
             <SequenceMemoryFlow csrfToken={session.data?.csrfToken ?? ''} onStageChange={setSequenceStage} />
           </div>
