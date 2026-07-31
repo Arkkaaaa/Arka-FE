@@ -6,9 +6,13 @@ import { Button, buttonClassName } from '../../components/index.ts';
 import { messageOf } from '../../config/api-client.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
+import { useGameSessionQuery } from '../../hooks/games/use-game-session-query.ts';
 import { useSessionSocket, useSetupSocket } from '../../hooks/realtime/use-realtime.ts';
 import {
+  playCountdownTone,
   playSequenceTone,
+  playStartTone,
+  resumeSequenceAudio,
   SEQUENCE_TILES,
   SequenceParticipantEntry,
   SequenceTutorial,
@@ -41,19 +45,21 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
           );
         })}
       </div>
-      <div className="rounded-md border-2 border-divider p-5">
-        <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Status permainan</p>
-        <p className="mt-3 mb-0 text-2xl font-black">
-          {visual?.phase === 'EXAMPLE'
-            ? 'Perhatikan urutannya'
-            : visual?.phase === 'RESPONSE'
-              ? 'Sekarang ikuti urutannya'
-              : visual?.feedback === 'ONE_BUTTON'
-                ? 'Tekan satu tombol saja'
-                : visual?.feedback === 'REPEAT'
-                  ? 'Mari lihat urutannya lagi'
-                  : 'Bagus, lanjutkan'}
-        </p>
+       <div className="rounded-md border-2 border-divider p-5" aria-live="polite">
+         <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">
+           Level {visual?.sequenceLength ?? 1} dari 6
+         </p>
+         <p className="mt-3 mb-0 text-2xl font-black">
+           {visual?.phase === 'EXAMPLE'
+             ? 'Perhatikan urutannya'
+             : visual?.phase === 'RESPONSE'
+               ? 'Giliran Anda—ulangi urutannya'
+               : visual?.feedback === 'ONE_BUTTON'
+                 ? 'Tekan satu tombol saja'
+                 : visual?.feedback === 'REPEAT'
+                   ? 'Belum tepat—perhatikan lagi'
+                   : 'Benar! Level berikutnya'}
+         </p>
         <dl className="mt-6 grid gap-4">
           <div>
             <dt className="text-sm font-bold text-muted">Panjang urutan</dt>
@@ -121,14 +127,26 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const [muted, setMuted] = useState(false);
   const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
   const sessionStartingRef = useRef(false);
+  const sessionRecoveryRef = useRef<string | null>(null);
+  const countdownToneRef = useRef<number | null>(null);
+  const activeToneRef = useRef<string | null>(null);
   const preparation = useCreatePreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
+  const persistedSession = useGameSessionQuery(sessionId ?? undefined, {
+    pollWhileActive: true,
+    pollWhileSaving: true,
+    retry: true,
+  });
   const setupSocket = useSetupSocket(preparation.data?.setupId ?? null);
   const sessionSocket = useSessionSocket(sessionId);
   const setupSnapshot = setupSocket.message?.type === 'setup.snapshot' ? setupSocket.message.payload : null;
   const sessionSnapshot = sessionSocket.message?.type === 'session.snapshot' ? sessionSocket.message.payload : null;
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
-  const status = sessionSnapshot?.status ?? createSession.data?.status ?? 'BINDING';
+  const persistedStatus = persistedSession.data?.status;
+  const status =
+    persistedStatus && persistedStatus !== 'BINDING'
+      ? persistedStatus
+      : sessionSnapshot?.status ?? createSession.data?.status ?? 'BINDING';
   const setupTerminal = setupSnapshot?.state === 'CANCELLED' || setupSnapshot?.state === 'EXPIRED';
   const setupFailed = setupSocket.status === 'FAILED' || setupSocket.protocolError !== null;
 
@@ -192,18 +210,50 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       return;
     }
     setCountdown(sessionSnapshot?.countdown ?? 3);
-    const timer = window.setInterval(() => setCountdown((value) => Math.max(1, value - 1)), 1_000);
+    const timer = window.setInterval(() => setCountdown((value) => Math.max(0, value - 1)), 1_000);
     return () => window.clearInterval(timer);
   }, [sessionSnapshot?.countdown, status]);
+
+  useEffect(() => {
+    if (muted) return;
+    if (status === 'COUNTDOWN' && countdown > 0 && countdownToneRef.current !== countdown) {
+      countdownToneRef.current = countdown;
+      playCountdownTone(countdown);
+      return;
+    }
+    if (status === 'PLAYING' && countdownToneRef.current !== 0) {
+      countdownToneRef.current = 0;
+      playStartTone();
+    }
+    if (status !== 'COUNTDOWN' && status !== 'PLAYING') countdownToneRef.current = null;
+  }, [countdown, muted, status]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const websocketStatus = sessionSnapshot?.status ?? null;
+    const durableStatus = persistedSession.data?.status ?? null;
+    const needsRecovery =
+      (countdown === 0 && websocketStatus === 'COUNTDOWN') ||
+      (durableStatus !== null && durableStatus !== 'BINDING' && durableStatus !== websocketStatus);
+    const recoveryKey = `${sessionId}:${durableStatus ?? 'countdown-expired'}:${websocketStatus ?? 'none'}`;
+    if (!needsRecovery || sessionRecoveryRef.current === recoveryKey) return;
+    sessionRecoveryRef.current = recoveryKey;
+    sessionSocket.reconnect();
+    void persistedSession.refetch();
+  }, [countdown, persistedSession.data?.status, persistedSession.refetch, sessionId, sessionSnapshot?.status, sessionSocket]);
 
   useEffect(() => {
     if (!sessionSocket.message || sessionSocket.message.type !== 'session.snapshot') return;
     const snapshot = sessionSocket.message.payload;
     const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
-    if (snapshot.status === 'PLAYING' && visual?.phase === 'EXAMPLE' && visual.activeItem) {
-      const tile = SEQUENCE_TILES.find((item) => item.code === visual.activeItem);
-      if (tile && !muted) playSequenceTone(tile.frequency);
-    }
+    const activeItem = snapshot.status === 'PLAYING' && visual?.phase === 'EXAMPLE'
+      ? visual.activeItem
+      : null;
+    if (activeItem === activeToneRef.current) return;
+    activeToneRef.current = activeItem;
+    if (!activeItem || muted) return;
+    const tile = SEQUENCE_TILES.find((item) => item.code === activeItem);
+    if (tile) playSequenceTone(tile.frequency);
   }, [muted, sessionSocket.message]);
 
   const sessionError = sessionSocket.protocolError;
@@ -235,7 +285,10 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     return (
       <SequenceTutorial
         onBack={() => setStage('participant')}
-        onReady={startPreparation}
+        onReady={() => {
+          resumeSequenceAudio();
+          startPreparation();
+        }}
         participantName={participantName}
       />
     );
@@ -300,15 +353,19 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     return <SequenceResult onReplay={reset} snapshot={sessionSnapshot} />;
   }
 
-  if (sessionSnapshot && ['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(sessionSnapshot.status)) {
+  if (['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(status)) {
     return (
-      <section className="mx-auto max-w-2xl text-center" aria-labelledby="terminal-title">
-        <AlertTriangle aria-hidden className="mx-auto size-12 text-muted" />
-        <h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">
-          {sessionSnapshot.status === 'ABORTED' ? 'Sesi diakhiri' : sessionSnapshot.status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}
-        </h1>
-        <p className="mt-4 mb-0 text-lg leading-8 text-muted">{sessionSnapshot.message}</p>
-        <Button className="mt-7" onClick={reset}>Kembali ke awal</Button>
+      <section className="mx-auto grid min-h-[32rem] max-w-2xl place-items-center text-center" aria-labelledby="terminal-title">
+        <div>
+          <AlertTriangle aria-hidden className="mx-auto size-12 text-muted" />
+          <h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">
+            {status === 'ABORTED' ? 'Sesi diakhiri' : status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}
+          </h1>
+          <p className="mt-4 mb-0 text-lg leading-8 text-muted">
+            {sessionSnapshot?.message ?? 'Sesi berhenti. Pastikan perangkat tetap terhubung lalu coba lagi.'}
+          </p>
+          <Button className="mt-7" onClick={reset}>Kembali ke awal</Button>
+        </div>
       </section>
     );
   }

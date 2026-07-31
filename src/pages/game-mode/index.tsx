@@ -25,11 +25,13 @@ export function GameModePage() {
   const onlineDevices = compatibleDevices.filter((device) => device.connectionStatus === 'ONLINE').length;
   const surface = resolveGameModeSurface(mode, Boolean(session.data));
   const immersiveTutorial = surface === 'sequence-flow' && sequenceStage === 'tutorial';
+  const immersiveSession = surface === 'sequence-flow' && (sequenceStage === 'setup' || sequenceStage === 'session');
+  const hideSequenceChrome = immersiveSession;
 
   return (
-    <div className={`min-h-dvh text-ink ${immersiveTutorial ? 'bg-[linear-gradient(135deg,#ffffff_0%,#f4f7fb_46%,#fff8df_100%)]' : 'bg-white'}`}>
-      <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>
-      {!immersiveTutorial && (
+    <div className="min-h-dvh bg-white text-ink">
+      {!hideSequenceChrome && <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>}
+      {!hideSequenceChrome && (
         <AccountHeader
           isSigningOut={signOut.isPending}
           onSignOut={() => session.data && signOut.mutate(session.data)}
@@ -37,13 +39,13 @@ export function GameModePage() {
         />
       )}
       <main
-        className={immersiveTutorial
-          ? 'min-h-dvh px-4 py-5 outline-none sm:px-8 lg:px-12'
+        className={hideSequenceChrome
+          ? 'min-h-dvh w-full px-4 py-5 outline-none sm:px-8 lg:px-12'
           : 'mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12'}
         id="game-mode-main"
         tabIndex={-1}
       >
-        {!immersiveTutorial && (
+        {!hideSequenceChrome && (
           <Link className="group inline-flex min-h-11 items-center gap-2 font-black no-underline" to={ROUTES.dashboard}>
             <ArrowLeft aria-hidden className="size-5" />
             <span className="relative after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:bg-ink after:transition-transform group-hover:after:scale-x-100 group-focus-visible:after:scale-x-100">Kembali ke dashboard</span>
@@ -51,7 +53,7 @@ export function GameModePage() {
         )}
 
         {surface === 'sequence-flow' ? (
-          <div className={immersiveTutorial ? '' : 'mt-8'}>
+             <div className={hideSequenceChrome ? '' : 'mt-8'}>
             <SequenceMemoryFlow csrfToken={session.data?.csrfToken ?? ''} onStageChange={setSequenceStage} />
           </div>
         ) : (

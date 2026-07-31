@@ -22,22 +22,43 @@ export const SEQUENCE_TILES = [
 
 type TileCode = (typeof SEQUENCE_TILES)[number]['code'];
 
-export function playSequenceTone(frequency: number) {
+let sharedAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  const context = new AudioContextClass();
+  if (!AudioContextClass) return null;
+  sharedAudioContext ??= new AudioContextClass();
+  if (sharedAudioContext.state === 'suspended') void sharedAudioContext.resume();
+  return sharedAudioContext;
+}
+
+export function resumeSequenceAudio(): void {
+  void getAudioContext()?.resume();
+}
+
+export function playSequenceTone(frequency: number, durationMs = 220): void {
+  const context = getAudioContext();
+  if (!context) return;
   const oscillator = context.createOscillator();
   const gain = context.createGain();
+  const now = context.currentTime;
   oscillator.type = 'sine';
   oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
   oscillator.connect(gain);
   gain.connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.22);
-  oscillator.addEventListener('ended', () => void context.close());
+  oscillator.start(now);
+  oscillator.stop(now + durationMs / 1000 + 0.02);
+}
+
+export function playCountdownTone(value: number): void {
+  playSequenceTone(value === 1 ? 784 : 587, 140);
+}
+
+export function playStartTone(): void {
+  playSequenceTone(1_046, 280);
 }
 
 declare global {
