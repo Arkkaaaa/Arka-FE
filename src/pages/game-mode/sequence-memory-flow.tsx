@@ -27,42 +27,34 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === active);
   const phaseMessage = visual?.phase === 'EXAMPLE'
     ? activeTile && visual.activeIndex !== null
-      ? `Contoh ${visual.activeIndex + 1}/${visual.sequenceLength}: ${activeTile.label}`
-      : 'Perhatikan urutan warna dari web dan alat'
+      ? `Warna ${visual.activeIndex + 1} dari ${visual.sequenceLength}: ${activeTile.label}`
+      : 'Perhatikan urutannya'
     : visual?.phase === 'RESPONSE'
-      ? `Jawaban benar ${visual.responseIndex}/${visual.sequenceLength}`
+      ? `Giliran Anda ${visual.responseIndex}/${visual.sequenceLength}`
       : visual?.feedback === 'ONE_BUTTON'
-        ? 'Tekan satu tombol saja'
+        ? `Tekan satu tombol saja pada urutan ke-${(visual.errorIndex ?? 0) + 1}`
         : visual?.feedback === 'REPEAT'
-          ? 'Belum tepat, urutan akan diulang'
-          : 'Benar, lanjut ke level berikutnya';
+          ? `Salah di urutan ke-${(visual.errorIndex ?? 0) + 1}. Urutan akan diulang`
+          : 'Benar. Satu warna baru akan ditambahkan';
+  const indicatorColor = activeTile?.color ?? '#e8e3d6';
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
-      <div className="mb-5 text-center" aria-live="polite" aria-atomic="true">
-        <p className="m-0 text-sm font-black tracking-[0.1em] text-accent uppercase">Level {visual?.sequenceLength ?? 1} dari 6</p>
-        <h2 className="mt-2 mb-0 text-3xl font-black">{phaseMessage}</h2>
-        <p className="mt-2 mb-0 text-base font-bold text-muted">Kesempatan tersisa: {visual?.lives ?? 2}</p>
+    <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center">
+      <div className="mb-10 text-center" aria-live="polite" aria-atomic="true">
+        <h2 className="m-0 text-3xl font-black">{phaseMessage}</h2>
+        {visual?.phase === 'RESPONSE' && <p className="mt-3 mb-0 text-base font-bold text-muted">Tekan tombol fisik sesuai urutan warna.</p>}
       </div>
-      <div className="grid w-full max-w-xl grid-cols-2 place-items-center gap-x-12 gap-y-7 sm:gap-x-20">
-        {SEQUENCE_TILES.map((tile) => {
-          const isActive = active === tile.code;
-          return (
-            <div className="grid min-h-40 place-items-center text-center" key={tile.code}>
-              <span className="relative block size-24 sm:size-28" aria-hidden>
-                {isActive && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}
-                <span
-                  className={`relative block size-full rounded-full border-8 border-[#111] transition-[filter,transform] ${isActive ? 'scale-105 brightness-125' : ''}`}
-                  style={{ backgroundColor: tile.color, filter: isActive ? `drop-shadow(0 0 26px ${tile.color})` : 'none' }}
-                />
-              </span>
-              <strong className="mt-3 text-2xl">{tile.label}</strong>
-              <span className="text-base font-bold text-muted">{tile.icon}</span>
-            </div>
-          );
-        })}
+      <div className="grid place-items-center text-center">
+        <span className="relative block size-52 sm:size-64" aria-hidden>
+          {activeTile && <span className="absolute inset-3 animate-ping rounded-full opacity-35" style={{ backgroundColor: activeTile.color }} />}
+          <span
+            className={`relative block size-full rounded-full border-[12px] border-[#111] transition-[background-color,filter,transform] duration-150 ${activeTile ? 'scale-105 brightness-110' : ''}`}
+            style={{ backgroundColor: indicatorColor, filter: activeTile ? `drop-shadow(0 0 38px ${activeTile.color})` : 'none' }}
+          />
+        </span>
+        <strong className="mt-6 min-h-9 text-3xl">{activeTile?.label ?? (visual?.phase === 'RESPONSE' ? 'Giliran Anda' : '')}</strong>
+        {activeTile && <span className="mt-1 text-lg font-bold text-muted">{activeTile.icon}</span>}
       </div>
-      {visual?.phase === 'RESPONSE' && <p className="mt-5 mb-0 text-center text-sm font-bold text-muted">Input hanya dihitung saat giliran Anda. Setiap tombol salah mengurangi satu kesempatan.</p>}
     </div>
   );
 }
@@ -248,12 +240,6 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   }, [muted, sessionSocket.message]);
 
   const sessionError = sessionSocket.protocolError;
-  const connectionLabel = useMemo(() => {
-    if (sessionSocket.status === 'OPEN') return 'Terhubung';
-    if (sessionSocket.status === 'RECONNECTING') return 'Menyambungkan ulang…';
-    if (sessionSocket.status === 'FAILED') return 'Koneksi gagal';
-    return 'Menghubungkan…';
-  }, [sessionSocket.status]);
 
   function reset() {
     sessionSocket.close();
@@ -389,7 +375,6 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-5">
         <div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">Ding Dong Dong</h1></div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="px-3 py-2 text-sm font-bold text-muted">{connectionLabel}</span>
           <Button onClick={() => sessionSocket.sendCommand(status === 'PAUSED' ? 'RESUME' : 'PAUSE')} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button>
           <Button onClick={() => {
             if (window.confirm('Sesi tidak akan dihitung sebagai selesai. Akhiri sesi?')) sessionSocket.sendCommand('ABORT');
