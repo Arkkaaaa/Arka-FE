@@ -26,12 +26,31 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const active = visual?.activeItem ?? null;
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === active);
   const lastCueId = useRef<string | null>(null);
+  const previousPhase = useRef(visual?.phase ?? null);
+  const turnAudio = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    turnAudio.current = new Audio('/turn.m4a');
+    turnAudio.current.preload = 'auto';
+    return () => {
+      turnAudio.current?.pause();
+      turnAudio.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!visual?.cueId || !activeTile || lastCueId.current === visual.cueId) return;
     lastCueId.current = visual.cueId;
     playSequenceTone(activeTile.frequency, 260);
   }, [activeTile, visual?.cueId]);
+
+  useEffect(() => {
+    if (visual?.phase === 'RESPONSE' && previousPhase.current !== 'RESPONSE' && turnAudio.current) {
+      turnAudio.current.currentTime = 0;
+      void turnAudio.current.play().catch(() => undefined);
+    }
+    previousPhase.current = visual?.phase ?? null;
+  }, [visual?.phase]);
 
   const indicatorColor = activeTile?.color ?? '#e8e3d6';
 
@@ -93,13 +112,11 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const [participant, setParticipant] = useState<SequenceParticipantIdentity | null>(null);
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(3);
-  const [muted, setMuted] = useState(false);
+  const [muted] = useState(false);
   const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
   const sessionStartingRef = useRef(false);
   const sessionRecoveryRef = useRef<string | null>(null);
   const countdownToneRef = useRef<number | null>(null);
-  const activeToneRef = useRef<string | null>(null);
   const preparation = useCreatePreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
   const persistedSession = useGameSessionQuery(sessionId ?? undefined, {
@@ -176,15 +193,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     startPreparation();
   }
 
-  useEffect(() => {
-    if (status !== 'COUNTDOWN') {
-      setCountdown(3);
-      return;
-    }
-    setCountdown(sessionSnapshot?.countdown ?? 3);
-    const timer = window.setInterval(() => setCountdown((value) => Math.max(0, value - 1)), 1_000);
-    return () => window.clearInterval(timer);
-  }, [sessionSnapshot?.countdown, status]);
+  const countdown = sessionSnapshot?.countdown ?? 3;
 
   useEffect(() => {
     if (muted) return;
@@ -205,28 +214,13 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     const websocketStatus = sessionSnapshot?.status ?? null;
     const durableStatus = persistedSession.data?.status ?? null;
     const needsRecovery =
-      (countdown === 0 && websocketStatus === 'COUNTDOWN') ||
-      (durableStatus !== null && durableStatus !== 'BINDING' && durableStatus !== websocketStatus);
+      durableStatus !== null && durableStatus !== 'BINDING' && durableStatus !== websocketStatus;
     const recoveryKey = `${sessionId}:${durableStatus ?? 'countdown-expired'}:${websocketStatus ?? 'none'}`;
     if (!needsRecovery || sessionRecoveryRef.current === recoveryKey) return;
     sessionRecoveryRef.current = recoveryKey;
     sessionSocket.reconnect();
     void persistedSession.refetch();
-  }, [countdown, persistedSession.data?.status, persistedSession.refetch, sessionId, sessionSnapshot?.status, sessionSocket]);
-
-  useEffect(() => {
-    if (!sessionSocket.message || sessionSocket.message.type !== 'session.snapshot') return;
-    const snapshot = sessionSocket.message.payload;
-    const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
-    const activeItem = snapshot.status === 'PLAYING' && visual?.phase === 'EXAMPLE'
-      ? visual.activeItem
-      : null;
-    if (activeItem === activeToneRef.current) return;
-    activeToneRef.current = activeItem;
-    if (!activeItem || muted) return;
-    const tile = SEQUENCE_TILES.find((item) => item.code === activeItem);
-    if (tile) playSequenceTone(tile.frequency);
-  }, [muted, sessionSocket.message]);
+  }, [persistedSession.data?.status, persistedSession.refetch, sessionId, sessionSnapshot?.status, sessionSocket]);
 
   const sessionError = sessionSocket.protocolError;
 
