@@ -25,36 +25,25 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
   const active = visual?.activeItem ?? null;
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === active);
-  const phaseMessage = visual?.phase === 'EXAMPLE'
-    ? activeTile && visual.activeIndex !== null
-      ? `Warna ${visual.activeIndex + 1} dari ${visual.sequenceLength}: ${activeTile.label}`
-      : 'Perhatikan urutannya'
-    : visual?.phase === 'RESPONSE'
-      ? `Giliran Anda ${visual.responseIndex}/${visual.sequenceLength}`
-      : visual?.feedback === 'ONE_BUTTON'
-        ? `Tekan satu tombol saja pada urutan ke-${(visual.errorIndex ?? 0) + 1}`
-        : visual?.feedback === 'REPEAT'
-          ? `Salah di urutan ke-${(visual.errorIndex ?? 0) + 1}. Urutan akan diulang`
-          : 'Perhatikan urutannya';
+  const lastCueId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!visual?.cueId || !activeTile || lastCueId.current === visual.cueId) return;
+    lastCueId.current = visual.cueId;
+    playSequenceTone(activeTile.frequency, 260);
+  }, [activeTile, visual?.cueId]);
+
   const indicatorColor = activeTile?.color ?? '#e8e3d6';
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center">
-      <div className="mb-10 text-center" aria-live="polite" aria-atomic="true">
-        <h2 className="m-0 text-3xl font-black">{phaseMessage}</h2>
-        {visual?.phase === 'RESPONSE' && <p className="mt-3 mb-0 text-base font-bold text-muted">Tekan tombol fisik sesuai urutan warna.</p>}
-      </div>
-      <div className="grid place-items-center text-center">
-        <span className="relative block size-52 sm:size-64" aria-hidden>
-          {activeTile && <span className="absolute inset-3 animate-ping rounded-full opacity-35" style={{ backgroundColor: activeTile.color }} />}
-          <span
-            className={`relative block size-full rounded-full border-[12px] border-[#111] transition-[background-color,filter,transform] duration-150 ${activeTile ? 'scale-105 brightness-110' : ''}`}
-            style={{ backgroundColor: indicatorColor, filter: activeTile ? `drop-shadow(0 0 38px ${activeTile.color})` : 'none' }}
-          />
-        </span>
-        <strong className="mt-6 min-h-9 text-3xl">{activeTile?.label ?? (visual?.phase === 'RESPONSE' ? 'Giliran Anda' : '')}</strong>
-        {activeTile && <span className="mt-1 text-lg font-bold text-muted">{activeTile.icon}</span>}
-      </div>
+    <div className="mx-auto grid min-h-[32rem] w-full place-items-center">
+      <span className="relative block size-72 sm:size-80 lg:size-96" aria-label={activeTile ? `Warna ${activeTile.label}` : 'Menunggu input'} role="img">
+        {activeTile && <span className="absolute inset-4 animate-ping rounded-full opacity-35" style={{ backgroundColor: activeTile.color }} />}
+        <span
+          className={`relative block size-full rounded-full border-[14px] border-[#111] transition-[background-color,filter,transform] duration-150 ${activeTile ? 'scale-105 brightness-110' : ''}`}
+          style={{ backgroundColor: indicatorColor, filter: activeTile ? `drop-shadow(0 0 46px ${activeTile.color})` : 'none' }}
+        />
+      </span>
     </div>
   );
 }
