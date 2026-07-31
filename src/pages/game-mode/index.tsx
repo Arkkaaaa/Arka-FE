@@ -29,7 +29,8 @@ export function GameModePage() {
   const hideSequenceChrome = immersiveTutorial || immersiveSession;
 
   return (
-    <div className="min-h-dvh bg-white text-ink">
+    <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
+      {surface === 'sequence-flow' && sequenceStage === 'participant' && <div aria-hidden className="landing-glow landing-glow-soft -top-36 -right-40 size-[34rem]" />}
       {!hideSequenceChrome && <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>}
       {!hideSequenceChrome && (
         <AccountHeader
@@ -40,8 +41,8 @@ export function GameModePage() {
       )}
       <main
         className={hideSequenceChrome
-          ? 'min-h-dvh w-full px-4 py-5 outline-none sm:px-8 lg:px-12'
-          : 'mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12'}
+          ? 'relative min-h-dvh w-full px-4 py-5 outline-none sm:px-8 lg:px-12'
+          : 'relative mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12'}
         id="game-mode-main"
         tabIndex={-1}
       >

@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, MousePointerClick, Pause, Play, RotateCcw, Search } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, MousePointerClick, Pause, Play, RotateCcw, Search, UserPlus } from 'lucide-react';
 import type { ParticipantDto } from '../../schemas/index.ts';
 import { Button, Field } from '../../components/index.ts';
 import { messageOf } from '../../config/api-client.ts';
@@ -279,23 +279,12 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
         ref={audioRef}
       />
       <header className="flex flex-wrap items-start justify-between gap-5">
-        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">Ding Dong Dong</h1><p className="mt-3 mb-0 text-lg text-muted">Pilih langkah yang ingin dipelajari atau langsung lanjut bermain.</p></div>
-        <p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p>
+        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">Ding Dong Dong</h1><p className="mt-3 mb-0 text-lg text-muted">Ikuti tutorial dengan tombol berikutnya atau langsung lewati.</p></div>
+        <div className="flex items-center gap-4">
+          <p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p>
+          <Button onClick={onReady} variant="quiet">Lewati tutorial</Button>
+        </div>
       </header>
-
-      <nav aria-label="Langkah tutorial" className="mt-6 flex flex-wrap gap-2">
-        {definition.steps.map((item, index) => (
-          <button
-            aria-current={step === index ? 'step' : undefined}
-            className={`min-h-11 rounded-sm border-2 px-4 text-sm font-black transition ${step === index ? 'border-ink bg-ink text-white' : 'border-divider bg-white text-ink hover:border-ink'}`}
-            key={item.title}
-            onClick={() => changeStep(index)}
-            type="button"
-          >
-            {index + 1}. {item.title}
-          </button>
-        ))}
-      </nav>
 
       <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
         <AnimatePresence initial={false} mode="wait">
@@ -342,15 +331,23 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
   const listId = useId();
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<ParticipantDto | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [error, setError] = useState('');
   const deferredName = useDeferredValue(name);
-  const search = useParticipantSearchQuery(deferredName);
+  const searchInput = deferredName.trim();
+  const search = useParticipantSearchQuery(searchInput);
   const createParticipant = useCreateParticipantMutation(csrfToken);
   const suggestions = search.data ?? [];
+  const searchSettled = searchInput === name.trim();
+  const hasName = name.trim().length > 0;
+  const isSearching = hasName && !selected && (!searchSettled || search.isFetching);
+  const showSuggestions = dropdownOpen && !selected && searchSettled && !search.isFetching && suggestions.length > 0;
+  const isNewParticipant = hasName && !selected && searchSettled && !search.isFetching && suggestions.length === 0;
 
   function choose(participant: ParticipantDto) {
     setName(participant.displayName);
     setSelected(participant);
+    setDropdownOpen(false);
     setError('');
     inputRef.current?.focus();
   }
@@ -361,6 +358,10 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
     if (!normalized) {
       setError('Masukkan nama peserta.');
       requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+    if (!selected && (!searchSettled || search.isFetching)) {
+      setError('Tunggu pencarian peserta selesai.');
       return;
     }
     const existing = selected?.displayName.toLocaleLowerCase('id-ID') === normalized.toLocaleLowerCase('id-ID')
@@ -388,11 +389,11 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
         <div className="relative">
           <Field
             aria-controls={listId}
-            aria-expanded={name.trim().length > 0 && suggestions.length > 0}
+            aria-expanded={showSuggestions}
             autoComplete="off"
             autoFocus
             error={error}
-            hint={!error ? 'Ketik nama untuk mencari peserta.' : undefined}
+            hint={error ? undefined : selected ? undefined : 'Ketik nama peserta.'}
             inputRef={inputRef}
             label="Cari atau tambah peserta"
             maxLength={100}
@@ -400,6 +401,7 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
             onChange={(event) => {
               setName(event.target.value);
               setSelected(null);
+              setDropdownOpen(true);
               if (error) setError('');
             }}
             placeholder="Contoh: Andrian"
@@ -407,28 +409,32 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
             trailing={<Search aria-hidden className="mr-3 size-5 text-muted" />}
             value={name}
           />
-          {name.trim().length > 0 && (
-            <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto rounded-sm border-2 border-ink bg-white shadow-[0_5px_0_#d9d4c5]" id={listId}>
-              {search.isPending ? (
-                <p className="m-0 px-4 py-3 text-sm font-bold text-muted" role="status">Mencari peserta…</p>
-              ) : suggestions.length > 0 ? (
-                <ul className="m-0 list-none p-1">
-                  {suggestions.map((participant) => (
-                    <li key={participant.participantId}>
-                      <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-sm px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
-                        <span>{participant.displayName}</span>
-                        {selected?.participantId === participant.participantId && <Check aria-hidden className="size-5" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="m-0 px-4 py-3 text-sm font-bold text-muted">Belum ada peserta bernama “{name.trim()}”. Nama ini akan dibuat sebagai peserta baru.</p>
-              )}
+          {isSearching && (
+            <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-muted" role="status"><Search aria-hidden className="size-4 animate-pulse" />Mencari peserta…</p>
+          )}
+          {showSuggestions && (
+            <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto rounded-sm border-2 border-ink bg-white p-1 shadow-[0_5px_0_#d9d4c5]" id={listId}>
+              <p className="px-3 py-2 text-xs font-black tracking-[0.08em] text-muted uppercase">Peserta ditemukan</p>
+              <ul className="m-0 list-none p-0">
+                {suggestions.map((participant) => (
+                  <li key={participant.participantId}>
+                    <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-sm px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
+                      <span>{participant.displayName}</span>
+                      <Check aria-hidden className="size-5 text-success" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
+          {isNewParticipant && (
+            <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-muted"><UserPlus aria-hidden className="size-4" />Peserta baru. Profil akan dibuat saat melanjutkan.</p>
+          )}
+          {selected && (
+            <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-success"><Check aria-hidden className="size-4" />Peserta dipilih: {selected.displayName}</p>
+          )}
         </div>
-        <Button disabled={createParticipant.isPending} type="submit">{createParticipant.isPending ? 'Menyimpan peserta…' : 'Lanjut ke tutorial'}</Button>
+        <Button disabled={createParticipant.isPending || isSearching} type="submit">{createParticipant.isPending ? 'Membuat peserta…' : isNewParticipant ? 'Buat peserta dan lanjut' : 'Lanjut ke tutorial'}</Button>
       </form>
     </section>
   );

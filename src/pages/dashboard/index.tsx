@@ -157,7 +157,8 @@ export function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-dvh bg-white text-ink">
+    <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
+      <div aria-hidden className="landing-glow landing-glow-soft -top-36 -right-40 size-[34rem]" />
       <a className="skip-link" href="#dashboard-main">Lewati ke konten utama</a>
       <AccountHeader
         isSigningOut={signOut.isPending}
@@ -170,7 +171,7 @@ export function DashboardPage() {
         <p className="mx-auto w-full max-w-[78rem] px-4 pt-4 text-base font-bold text-danger sm:px-6 lg:px-8" role="alert">{messageOf(signOut.error)}</p>
       )}
 
-      <main className="mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12" id="dashboard-main" tabIndex={-1}>
+      <main className="relative mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12" id="dashboard-main" tabIndex={-1}>
         <m.section
           animate={{ opacity: 1, y: 0 }}
           initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}

@@ -28,6 +28,49 @@ function progressLabel(progress: ParticipantProgress['progress']): string {
   return 'Belum ada sesi pembanding';
 }
 
+function ProgressCardSkeleton() {
+  return (
+    <article aria-hidden className="animate-pulse rounded-md border-2 border-divider bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="size-12 shrink-0 rounded-full bg-brand-soft" />
+          <div className="min-w-0">
+            <span className="block h-7 w-44 max-w-full rounded-sm bg-divider" />
+            <span className="mt-2 block h-5 w-32 rounded-sm bg-divider/70" />
+          </div>
+        </div>
+        <span className="h-9 w-36 rounded-full bg-brand-soft" />
+      </div>
+      <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
+        <div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="h-4 w-32 rounded-sm bg-divider/70" />
+            <span className="h-5 w-20 rounded-sm bg-divider" />
+          </div>
+          <span className="mt-2 block h-3 w-full rounded-full bg-divider" />
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="size-5 shrink-0 rounded-full bg-divider" />
+          <div className="w-full">
+            <span className="block h-4 w-32 rounded-sm bg-divider/70" />
+            <span className="mt-2 block h-5 w-52 max-w-full rounded-sm bg-divider" />
+          </div>
+        </div>
+        <div className="flex items-start gap-3 lg:min-w-48">
+          <span className="size-5 shrink-0 rounded-full bg-divider" />
+          <div className="w-full">
+            <span className="block h-4 w-24 rounded-sm bg-divider/70" />
+            <span className="mt-2 block h-5 w-40 rounded-sm bg-divider" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 border-t-2 border-divider pt-4">
+        <span className="block h-5 w-56 max-w-full rounded-sm bg-divider/70" />
+      </div>
+    </article>
+  );
+}
+
 function ProgressCard({ participant }: { participant: ParticipantProgress }) {
   const latestMode = participant.lastSession
     ? GAME_MODES.find((mode) => mode.mode === participant.lastSession?.mode)
@@ -35,7 +78,7 @@ function ProgressCard({ participant }: { participant: ParticipantProgress }) {
   const consistency = (participant.activeWeeksLast4 / 4) * 100;
 
   return (
-    <article className="rounded-md border-2 border-divider p-5">
+    <article className="rounded-md border-2 border-divider bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
           <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft">
@@ -99,7 +142,8 @@ export function LeaderboardPage() {
   const progress = useDashboardProgressQuery(Boolean(session.data));
 
   return (
-    <div className="min-h-dvh bg-white text-ink">
+    <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
+      <div aria-hidden className="landing-glow landing-glow-soft -top-40 -left-44 size-[34rem]" />
       <a className="skip-link" href="#progress-main">Lewati ke konten utama</a>
       <AccountHeader
         isSigningOut={signOut.isPending}
@@ -108,7 +152,7 @@ export function LeaderboardPage() {
         }}
         user={session.data}
       />
-      <main className="mx-auto w-full max-w-[70rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12" id="progress-main" tabIndex={-1}>
+      <main className="relative mx-auto w-full max-w-[70rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12" id="progress-main" tabIndex={-1}>
         <Link className="group inline-flex min-h-11 items-center gap-2 font-black no-underline" to={ROUTES.dashboard}>
           <ArrowLeft aria-hidden className="size-5" />
           <span className="relative after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:bg-ink after:transition-transform group-hover:after:scale-x-100 group-focus-visible:after:scale-x-100">Kembali ke dashboard</span>
@@ -119,7 +163,11 @@ export function LeaderboardPage() {
           <h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl">Progress Board</h1>
           <p className="mt-4 mb-0 max-w-3xl text-lg leading-8 text-muted">Pantau konsistensi, perkembangan pribadi, dan pencapaian peserta tanpa membandingkan kemampuan antarpeserta.</p>
 
-          {progress.isError ? (
+          {progress.isPending && !progress.data ? (
+            <div aria-label="Memuat perkembangan peserta" className="mt-8 grid gap-4" role="status">
+              {Array.from({ length: 3 }, (_, index) => <ProgressCardSkeleton key={index} />)}
+            </div>
+          ) : progress.isError ? (
             <div className="mt-8 flex min-h-44 flex-col items-center justify-center gap-3 p-6 text-center text-muted" role="status">
               <TrendingUp aria-hidden className="size-9" strokeWidth={1.75} />
               <p className="m-0 text-base font-semibold">Data perkembangan belum tersedia.</p>
