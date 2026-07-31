@@ -35,7 +35,7 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
         ? `Tekan satu tombol saja pada urutan ke-${(visual.errorIndex ?? 0) + 1}`
         : visual?.feedback === 'REPEAT'
           ? `Salah di urutan ke-${(visual.errorIndex ?? 0) + 1}. Urutan akan diulang`
-          : 'Benar. Satu warna baru akan ditambahkan';
+          : 'Perhatikan urutannya';
   const indicatorColor = activeTile?.color ?? '#e8e3d6';
 
   return (
