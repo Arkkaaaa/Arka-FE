@@ -249,7 +249,10 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     const websocketStatus = sessionSnapshot?.status ?? null;
     const durableStatus = persistedSession.data?.status ?? null;
     const needsRecovery =
-      durableStatus !== null && durableStatus !== 'BINDING' && durableStatus !== websocketStatus;
+      sessionSocket.status !== 'OPEN' &&
+      durableStatus !== null &&
+      durableStatus !== 'BINDING' &&
+      durableStatus !== websocketStatus;
     const recoveryKey = `${sessionId}:${durableStatus ?? 'countdown-expired'}:${websocketStatus ?? 'none'}`;
     if (!needsRecovery || sessionRecoveryRef.current === recoveryKey) return;
     sessionRecoveryRef.current = recoveryKey;
