@@ -30,6 +30,5 @@ export const API_ENDPOINTS = {
   },
   devices: {
     list: '/api/v1/devices',
-    detail: (deviceId: string) => `/api/v1/devices/${encodeURIComponent(deviceId)}`,
   },
 } as const;
