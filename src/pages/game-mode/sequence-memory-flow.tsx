@@ -16,6 +16,7 @@ import {
   SEQUENCE_TILES,
   SequenceParticipantEntry,
   SequenceTutorial,
+  type SequenceParticipantIdentity,
 } from './sequence-tutorial.tsx';
 
 type SessionSnapshot = Extract<AppServerMessage, { type: 'session.snapshot' }>['payload'];
@@ -23,16 +24,32 @@ type SessionSnapshot = Extract<AppServerMessage, { type: 'session.snapshot' }>['
 function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
   const active = visual?.activeItem ?? null;
-  const remaining = visual ? Math.max(0, visual.sequenceLength - visual.responseIndex) : 0;
+  const activeTile = SEQUENCE_TILES.find((tile) => tile.code === active);
+  const phaseMessage = visual?.phase === 'EXAMPLE'
+    ? activeTile && visual.activeIndex !== null
+      ? `Contoh ${visual.activeIndex + 1}/${visual.sequenceLength}: ${activeTile.label}`
+      : 'Perhatikan urutan warna dari web dan alat'
+    : visual?.phase === 'RESPONSE'
+      ? `Jawaban benar ${visual.responseIndex}/${visual.sequenceLength}`
+      : visual?.feedback === 'ONE_BUTTON'
+        ? 'Tekan satu tombol saja'
+        : visual?.feedback === 'REPEAT'
+          ? 'Belum tepat, urutan akan diulang'
+          : 'Benar, lanjut ke level berikutnya';
 
   return (
-    <div className="grid gap-7 lg:grid-cols-[1fr_18rem] lg:items-center">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
+      <div className="mb-5 text-center" aria-live="polite" aria-atomic="true">
+        <p className="m-0 text-sm font-black tracking-[0.1em] text-accent uppercase">Level {visual?.sequenceLength ?? 1} dari 6</p>
+        <h2 className="mt-2 mb-0 text-3xl font-black">{phaseMessage}</h2>
+        <p className="mt-2 mb-0 text-base font-bold text-muted">Kesempatan tersisa: {visual?.lives ?? 2}</p>
+      </div>
+      <div className="grid w-full max-w-xl grid-cols-2 place-items-center gap-x-12 gap-y-7 sm:gap-x-20">
         {SEQUENCE_TILES.map((tile) => {
           const isActive = active === tile.code;
           return (
-            <div className="grid min-h-44 place-items-center p-5 text-center" key={tile.code}>
-              <span className="relative block size-28" aria-hidden>
+            <div className="grid min-h-40 place-items-center text-center" key={tile.code}>
+              <span className="relative block size-24 sm:size-28" aria-hidden>
                 {isActive && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}
                 <span
                   className={`relative block size-full rounded-full border-8 border-[#111] transition-[filter,transform] ${isActive ? 'scale-105 brightness-125' : ''}`}
@@ -40,41 +57,12 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
                 />
               </span>
               <strong className="mt-3 text-2xl">{tile.label}</strong>
-              <span className="text-lg font-bold text-muted">{tile.icon}</span>
+              <span className="text-base font-bold text-muted">{tile.icon}</span>
             </div>
           );
         })}
       </div>
-       <div className="rounded-md border-2 border-divider p-5" aria-live="polite">
-         <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">
-           Level {visual?.sequenceLength ?? 1} dari 6
-         </p>
-         <p className="mt-3 mb-0 text-2xl font-black">
-           {visual?.phase === 'EXAMPLE'
-             ? 'Perhatikan urutannya'
-             : visual?.phase === 'RESPONSE'
-               ? 'Giliran Anda—ulangi urutannya'
-               : visual?.feedback === 'ONE_BUTTON'
-                 ? 'Tekan satu tombol saja'
-                 : visual?.feedback === 'REPEAT'
-                   ? 'Belum tepat—perhatikan lagi'
-                   : 'Benar! Level berikutnya'}
-         </p>
-        <dl className="mt-6 grid gap-4">
-          <div>
-            <dt className="text-sm font-bold text-muted">Panjang urutan</dt>
-            <dd className="m-0 text-3xl font-black">{visual?.sequenceLength ?? 2}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-bold text-muted">Input tersisa</dt>
-            <dd className="m-0 text-3xl font-black">{visual?.phase === 'RESPONSE' ? remaining : '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-bold text-muted">Kesempatan tersisa</dt>
-            <dd className="m-0 text-3xl font-black">{visual?.lives ?? 2}</dd>
-          </div>
-        </dl>
-      </div>
+      {visual?.phase === 'RESPONSE' && <p className="mt-5 mb-0 text-center text-sm font-bold text-muted">Input hanya dihitung saat giliran Anda. Setiap tombol salah mengurangi satu kesempatan.</p>}
     </div>
   );
 }
@@ -121,7 +109,8 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     setStageState(next);
     onStageChange(next);
   }, [onStageChange]);
-  const [participantName, setParticipantName] = useState('');
+  const [participant, setParticipant] = useState<SequenceParticipantIdentity | null>(null);
+  const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [muted, setMuted] = useState(false);
@@ -157,12 +146,14 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     sessionStartingRef.current = false;
     createSession.reset();
     preparation.reset();
+    if (!participant) return;
     preparation.mutate({
       mode: 'SEQUENCE_MEMORY',
-      displayName: participantName,
+      displayName: participant.displayName,
+      participantReference: participant.participantReference,
       privacyAcknowledged: true,
     });
-  }, [createSession, csrfToken, participantName, preparation, setStage]);
+  }, [createSession, csrfToken, participant, preparation, setStage]);
 
   const startSession = useCallback(async () => {
     const current = preparation.data;
@@ -275,8 +266,8 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   }
 
   if (stage === 'participant') {
-    return <SequenceParticipantEntry onContinue={(name) => {
-      setParticipantName(name);
+    return <SequenceParticipantEntry csrfToken={csrfToken} onContinue={(identity) => {
+      setParticipant(identity);
       setStage('tutorial');
     }} />;
   }

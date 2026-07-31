@@ -18,6 +18,7 @@ export const QUERY_KEYS = {
     all: ['participants'] as const,
     detail: (participantId: string | undefined) =>
       ['participants', 'detail', participantId] as const,
+    search: (query: string) => ['participants', 'search', query] as const,
     history: (participantId: string | undefined, mode: GameMode | '') =>
       ['participants', 'history', participantId, mode] as const,
     historyPreview: (participantId: string | undefined) =>

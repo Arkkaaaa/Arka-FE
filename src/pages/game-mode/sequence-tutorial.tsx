@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, MousePointerClick, Pause, Play, RotateCcw } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, MousePointerClick, Pause, Play, RotateCcw, Search } from 'lucide-react';
+import type { ParticipantDto } from '../../schemas/index.ts';
 import { Button, Field } from '../../components/index.ts';
+import { messageOf } from '../../config/api-client.ts';
 import { tutorials } from '../../constants/tutorials.ts';
+import { useCreateParticipantMutation } from '../../hooks/participants/use-participant-mutations.ts';
+import { useParticipantSearchQuery } from '../../hooks/participants/use-participant-queries.ts';
 
 const definition = tutorials.SEQUENCE_MEMORY;
 const AUDIO_SOURCES = [
@@ -254,7 +258,7 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
         changeStep(state.step - 1);
         return;
       }
-      if (event.key === 'ArrowRight' && state.completed) {
+      if (event.key === 'ArrowRight') {
         event.preventDefault();
         if (state.step < definition.steps.length - 1) changeStep(state.step + 1);
         else onReady();
@@ -275,9 +279,23 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
         ref={audioRef}
       />
       <header className="flex flex-wrap items-start justify-between gap-5">
-        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">Ding Dong Dong</h1><p className="mt-3 mb-0 text-lg text-muted">Perhatikan contoh, lalu tirukan pada tombol fisik.</p></div>
+        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">Ding Dong Dong</h1><p className="mt-3 mb-0 text-lg text-muted">Pilih langkah yang ingin dipelajari atau langsung lanjut bermain.</p></div>
         <p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p>
       </header>
+
+      <nav aria-label="Langkah tutorial" className="mt-6 flex flex-wrap gap-2">
+        {definition.steps.map((item, index) => (
+          <button
+            aria-current={step === index ? 'step' : undefined}
+            className={`min-h-11 rounded-sm border-2 px-4 text-sm font-black transition ${step === index ? 'border-ink bg-ink text-white' : 'border-divider bg-white text-ink hover:border-ink'}`}
+            key={item.title}
+            onClick={() => changeStep(index)}
+            type="button"
+          >
+            {index + 1}. {item.title}
+          </button>
+        ))}
+      </nav>
 
       <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
         <AnimatePresence initial={false} mode="wait">
@@ -301,7 +319,7 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={step === 0} onClick={() => changeStep(step - 1)} variant="quiet"><ChevronLeft aria-hidden className="size-5" />Sebelumnya</Button>
-          {step < definition.steps.length - 1 ? <Button disabled={!completed} onClick={() => changeStep(step + 1)} variant="secondary">Berikutnya<ChevronRight aria-hidden className="size-5" /></Button> : <Button disabled={!completed} onClick={onReady}>Berikutnya<ChevronRight aria-hidden className="size-5" /></Button>}
+          {step < definition.steps.length - 1 ? <Button onClick={() => changeStep(step + 1)} variant="secondary">Berikutnya<ChevronRight aria-hidden className="size-5" /></Button> : <Button onClick={onReady}>Mulai bermain<ChevronRight aria-hidden className="size-5" /></Button>}
         </div>
       </footer>
       <button className="mt-4 w-fit border-0 bg-transparent p-0 text-sm font-bold text-muted underline-offset-4 hover:underline" onClick={onBack} type="button">Kembali ke nama peserta</button>
@@ -309,22 +327,109 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
   );
 }
 
-interface SequenceParticipantEntryProps { onContinue: (name: string) => void; }
+export interface SequenceParticipantIdentity {
+  displayName: string;
+  participantReference: string;
+}
 
-export function SequenceParticipantEntry({ onContinue }: SequenceParticipantEntryProps) {
+interface SequenceParticipantEntryProps {
+  csrfToken: string;
+  onContinue: (participant: SequenceParticipantIdentity) => void;
+}
+
+export function SequenceParticipantEntry({ csrfToken, onContinue }: SequenceParticipantEntryProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
   const [name, setName] = useState('');
+  const [selected, setSelected] = useState<ParticipantDto | null>(null);
   const [error, setError] = useState('');
+  const deferredName = useDeferredValue(name);
+  const search = useParticipantSearchQuery(deferredName);
+  const createParticipant = useCreateParticipantMutation(csrfToken);
+  const suggestions = search.data ?? [];
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function choose(participant: ParticipantDto) {
+    setName(participant.displayName);
+    setSelected(participant);
+    setError('');
+    inputRef.current?.focus();
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = name.trim().replace(/\s+/g, ' ');
-    if (!normalized) { setError('Masukkan nama peserta.'); requestAnimationFrame(() => inputRef.current?.focus()); return; }
-    if (normalized.length > 100) { setError('Nama peserta maksimal 100 karakter.'); requestAnimationFrame(() => inputRef.current?.focus()); return; }
-    onContinue(normalized);
+    if (!normalized) {
+      setError('Masukkan nama peserta.');
+      requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+    const existing = selected?.displayName.toLocaleLowerCase('id-ID') === normalized.toLocaleLowerCase('id-ID')
+      ? selected
+      : suggestions.find((participant) => participant.displayName.toLocaleLowerCase('id-ID') === normalized.toLocaleLowerCase('id-ID'));
+    if (existing) {
+      onContinue({ displayName: existing.displayName, participantReference: existing.participantReference });
+      return;
+    }
+    try {
+      const participant = await createParticipant.mutateAsync({ displayName: normalized });
+      onContinue({ displayName: participant.displayName, participantReference: participant.participantReference });
+    } catch (creationError) {
+      setError(messageOf(creationError));
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
   }
 
   return (
-    <section className="mx-auto max-w-2xl" aria-labelledby="participant-title"><p className="landing-eyebrow">Ding Dong Dong</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="participant-title">Siapa yang akan bermain?</h1><p className="mt-4 mb-0 text-lg leading-8 text-muted">Masukkan nama sekali untuk tutorial dan sesi permainan.</p><form className="mt-8 grid gap-5 rounded-md border-2 border-divider p-6 sm:p-8" noValidate onSubmit={submit}><Field autoComplete="off" autoFocus error={error} inputRef={inputRef} label="Nama peserta" maxLength={100} name="participantName" onChange={(event) => { setName(event.target.value); if (error) setError(''); }} placeholder="Contoh: Ibu Sari" required value={name} /><Button type="submit">Lanjut ke tutorial</Button></form></section>
+    <section className="mx-auto max-w-2xl" aria-labelledby="participant-title">
+      <p className="landing-eyebrow">Ding Dong Dong</p>
+      <h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="participant-title">Siapa yang akan bermain?</h1>
+      <p className="mt-4 mb-0 text-lg leading-8 text-muted">Cari peserta yang sudah ada. Jika namanya belum terdaftar, profil baru akan dibuat otomatis.</p>
+      <form className="mt-8 grid gap-5 rounded-md border-2 border-divider p-6 sm:p-8" noValidate onSubmit={submit}>
+        <div className="relative">
+          <Field
+            aria-controls={listId}
+            aria-expanded={name.trim().length > 0 && suggestions.length > 0}
+            autoComplete="off"
+            autoFocus
+            error={error}
+            hint={!error ? 'Ketik nama untuk mencari peserta.' : undefined}
+            inputRef={inputRef}
+            label="Cari atau tambah peserta"
+            maxLength={100}
+            name="participantName"
+            onChange={(event) => {
+              setName(event.target.value);
+              setSelected(null);
+              if (error) setError('');
+            }}
+            placeholder="Contoh: Andrian"
+            required
+            trailing={<Search aria-hidden className="mr-3 size-5 text-muted" />}
+            value={name}
+          />
+          {name.trim().length > 0 && (
+            <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto rounded-sm border-2 border-ink bg-white shadow-[0_5px_0_#d9d4c5]" id={listId}>
+              {search.isPending ? (
+                <p className="m-0 px-4 py-3 text-sm font-bold text-muted" role="status">Mencari peserta…</p>
+              ) : suggestions.length > 0 ? (
+                <ul className="m-0 list-none p-1">
+                  {suggestions.map((participant) => (
+                    <li key={participant.participantId}>
+                      <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-sm px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
+                        <span>{participant.displayName}</span>
+                        {selected?.participantId === participant.participantId && <Check aria-hidden className="size-5" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="m-0 px-4 py-3 text-sm font-bold text-muted">Belum ada peserta bernama “{name.trim()}”. Nama ini akan dibuat sebagai peserta baru.</p>
+              )}
+            </div>
+          )}
+        </div>
+        <Button disabled={createParticipant.isPending} type="submit">{createParticipant.isPending ? 'Menyimpan peserta…' : 'Lanjut ke tutorial'}</Button>
+      </form>
+    </section>
   );
 }

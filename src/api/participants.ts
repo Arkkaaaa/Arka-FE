@@ -1,7 +1,10 @@
 import {
+  CreateParticipantRequestSchema,
   HistoryPageDtoSchema,
   LeaderboardDtoSchema,
   ParticipantDtoSchema,
+  ParticipantSearchQuerySchema,
+  ParticipantSearchResponseSchema,
   ResolveParticipantRequestSchema,
   ResolveParticipantResponseSchema,
   UpdateParticipantRequestSchema,
@@ -15,7 +18,29 @@ import { apiGet, apiPatch, apiPost, requestBody } from '../config/api-client.ts'
 import { API_ENDPOINTS } from '../constants/api.ts';
 
 export type ResolveParticipantInput = z.infer<typeof ResolveParticipantRequestSchema>;
+export type CreateParticipantInput = z.infer<typeof CreateParticipantRequestSchema>;
 export type UpdateParticipantInput = z.infer<typeof UpdateParticipantRequestSchema>;
+
+export function searchParticipants(query: string): Promise<ParticipantDto[]> {
+  const parsed = ParticipantSearchQuerySchema.parse({ query });
+  const search = new URLSearchParams({ query: parsed.query });
+  return apiGet(
+    `${API_ENDPOINTS.participants.list}?${search.toString()}`,
+    ParticipantSearchResponseSchema,
+  );
+}
+
+export function createParticipant(
+  input: CreateParticipantInput,
+  csrfToken: string,
+): Promise<ParticipantDto> {
+  return apiPost(
+    API_ENDPOINTS.participants.list,
+    requestBody(CreateParticipantRequestSchema, input),
+    ParticipantDtoSchema,
+    csrfToken,
+  );
+}
 
 export function resolveParticipant(
   input: ResolveParticipantInput,

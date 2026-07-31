@@ -4,8 +4,18 @@ import {
   getParticipant,
   getParticipantLeaderboard,
   getParticipantSessions,
+  searchParticipants,
 } from '../../api/participants.ts';
 import { QUERY_KEYS } from '../../constants/query-keys.ts';
+
+export function useParticipantSearchQuery(query: string) {
+  const normalized = query.trim();
+  return useQuery({
+    queryKey: QUERY_KEYS.participants.search(normalized),
+    queryFn: () => searchParticipants(normalized),
+    enabled: normalized.length > 0,
+  });
+}
 
 export function useParticipantQuery(participantId: string | undefined) {
   return useQuery({

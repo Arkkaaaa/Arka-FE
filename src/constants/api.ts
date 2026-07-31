@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     session: (sessionId: string) => `/api/v1/game-sessions/${encodeURIComponent(sessionId)}`,
   },
   participants: {
+    list: '/api/v1/participants',
     resolve: '/api/v1/participants/resolve',
     detail: (participantId: string) => `/api/v1/participants/${encodeURIComponent(participantId)}`,
     sessions: (participantId: string) =>

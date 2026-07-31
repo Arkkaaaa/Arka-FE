@@ -26,7 +26,7 @@ export function GameModePage() {
   const surface = resolveGameModeSurface(mode, Boolean(session.data));
   const immersiveTutorial = surface === 'sequence-flow' && sequenceStage === 'tutorial';
   const immersiveSession = surface === 'sequence-flow' && (sequenceStage === 'setup' || sequenceStage === 'session');
-  const hideSequenceChrome = immersiveSession;
+  const hideSequenceChrome = immersiveTutorial || immersiveSession;
 
   return (
     <div className="min-h-dvh bg-white text-ink">

@@ -1,11 +1,23 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  createParticipant,
   resolveParticipant,
   updateParticipant,
+  type CreateParticipantInput,
   type ResolveParticipantInput,
   type UpdateParticipantInput,
 } from '../../api/participants.ts';
 import { QUERY_KEYS } from '../../constants/query-keys.ts';
+
+export function useCreateParticipantMutation(csrfToken: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateParticipantInput) => createParticipant(input, csrfToken),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.participants.all });
+    },
+  });
+}
 
 export function useResolveParticipantMutation(csrfToken: string) {
   return useMutation({
