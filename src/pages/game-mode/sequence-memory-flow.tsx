@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Gamepad2, Pause, Play } from 'lucide-react';
 import { heartHandsEmoji } from '../../assets/index.ts';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { AppServerMessage } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
 import { messageOf } from '../../config/api-client.ts';
@@ -56,7 +56,11 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const indicatorColor = activeTile?.color ?? '#e8e3d6';
 
   return (
-    <div className="mx-auto grid min-h-[32rem] w-full place-items-center">
+    <div className="mx-auto flex min-h-[32rem] w-full flex-col items-center justify-center">
+      <div className="mb-8 inline-flex min-h-12 items-center gap-3 rounded-full bg-brand-soft px-5 text-base font-black" aria-label={`Sisa kesempatan ${visual?.remainingAttempts ?? 3}`}>
+        <img alt="" aria-hidden className="size-7" src={heartHandsEmoji} />
+        <span>Sisa kesempatan {visual?.remainingAttempts ?? 3}</span>
+      </div>
       <span className="relative block size-72 sm:size-80 lg:size-96" aria-label={activeTile ? `Warna ${activeTile.label}` : 'Menunggu input'} role="img">
         {activeTile && <span className="absolute inset-4 animate-ping rounded-full opacity-35" style={{ backgroundColor: activeTile.color }} />}
         <span
@@ -105,6 +109,7 @@ interface SequenceMemoryFlowProps {
 }
 
 export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryFlowProps) {
+  const navigate = useNavigate();
   const [stage, setStageState] = useState<SequenceMemoryStage>('participant');
   const setStage = useCallback((next: SequenceMemoryStage) => {
     setStageState(next);
@@ -236,6 +241,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   function confirmAbort() {
     setAbortDialogOpen(false);
     sessionSocket.sendCommand('ABORT');
+    navigate(ROUTES.dashboard, { replace: true });
   }
 
   useEffect(() => {
@@ -387,10 +393,6 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-5">
         <div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">Ding Dong Dong</h1></div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="mr-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-soft px-4 text-sm font-black" aria-label={`Sisa kesempatan ${sessionSnapshot?.visual?.mode === 'SEQUENCE_MEMORY' ? sessionSnapshot.visual.remainingAttempts : 3}`}>
-            <img alt="" aria-hidden className="size-6" src={heartHandsEmoji} />
-            <span>Sisa kesempatan {sessionSnapshot?.visual?.mode === 'SEQUENCE_MEMORY' ? sessionSnapshot.visual.remainingAttempts : 3}</span>
-          </div>
           <Button onClick={() => sessionSocket.sendCommand(status === 'PAUSED' ? 'RESUME' : 'PAUSE')} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button>
           <button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button>
         </div>
