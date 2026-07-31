@@ -280,7 +280,7 @@ export function SequenceTutorial({ participantName, onBack, onReady }: SequenceT
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={step === 0} onClick={() => changeStep(step - 1)} variant="quiet"><ChevronLeft aria-hidden className="size-5" />Sebelumnya</Button>
-          {step < definition.steps.length - 1 ? <Button disabled={!completed} onClick={() => changeStep(step + 1)} variant="secondary">Berikutnya<ChevronRight aria-hidden className="size-5" /></Button> : <Button disabled={!completed} onClick={onReady}>Lanjut ke persiapan alat</Button>}
+          {step < definition.steps.length - 1 ? <Button disabled={!completed} onClick={() => changeStep(step + 1)} variant="secondary">Berikutnya<ChevronRight aria-hidden className="size-5" /></Button> : <Button disabled={!completed} onClick={onReady}>Berikutnya<ChevronRight aria-hidden className="size-5" /></Button>}
         </div>
       </footer>
       <button className="mt-4 w-fit border-0 bg-transparent p-0 text-sm font-bold text-muted underline-offset-4 hover:underline" onClick={onBack} type="button">Kembali ke nama peserta</button>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Gamepad2, Pause, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AppServerMessage } from '../../schemas/index.ts';
@@ -111,13 +111,16 @@ interface SequenceMemoryFlowProps {
 
 export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryFlowProps) {
   const [stage, setStageState] = useState<SequenceMemoryStage>('participant');
-  const setStage = (next: SequenceMemoryStage) => {
+  const setStage = useCallback((next: SequenceMemoryStage) => {
     setStageState(next);
     onStageChange(next);
-  };
+  }, [onStageChange]);
   const [participantName, setParticipantName] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(3);
   const [muted, setMuted] = useState(false);
+  const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
+  const sessionStartingRef = useRef(false);
   const preparation = useCreatePreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
   const setupSocket = useSetupSocket(preparation.data?.setupId ?? null);
@@ -126,6 +129,72 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const sessionSnapshot = sessionSocket.message?.type === 'session.snapshot' ? sessionSocket.message.payload : null;
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
   const status = sessionSnapshot?.status ?? createSession.data?.status ?? 'BINDING';
+  const setupTerminal = setupSnapshot?.state === 'CANCELLED' || setupSnapshot?.state === 'EXPIRED';
+  const setupFailed = setupSocket.status === 'FAILED' || setupSocket.protocolError !== null;
+
+  const startPreparation = useCallback(() => {
+    if (!csrfToken || preparation.isPending) return;
+    setStage('setup');
+    sessionAttemptRef.current = null;
+    sessionStartingRef.current = false;
+    createSession.reset();
+    preparation.reset();
+    preparation.mutate({
+      mode: 'SEQUENCE_MEMORY',
+      displayName: participantName,
+      privacyAcknowledged: true,
+    });
+  }, [createSession, csrfToken, participantName, preparation, setStage]);
+
+  const startSession = useCallback(async () => {
+    const current = preparation.data;
+    if (!current || sessionStartingRef.current) return;
+    const existing = sessionAttemptRef.current;
+    const attempt =
+      existing?.preparationId === current.preparationId
+        ? existing
+        : { preparationId: current.preparationId, idempotencyKey: crypto.randomUUID() };
+    sessionAttemptRef.current = attempt;
+    sessionStartingRef.current = true;
+    try {
+      const created = await createSession.mutateAsync(attempt);
+      setSessionId(created.sessionId);
+      preparation.reset();
+      sessionAttemptRef.current = null;
+      setStage('session');
+    } catch {
+      return;
+    } finally {
+      sessionStartingRef.current = false;
+    }
+  }, [createSession, preparation.data, setStage]);
+
+  useEffect(() => {
+    if (stage === 'setup' && canStart && !createSession.isError) void startSession();
+  }, [canStart, createSession.isError, stage, startSession]);
+
+  function retrySetup() {
+    if (createSession.isError && preparation.data && !setupTerminal) {
+      createSession.reset();
+      void startSession();
+      return;
+    }
+    if (preparation.data && setupFailed && !setupTerminal) {
+      setupSocket.reconnect();
+      return;
+    }
+    startPreparation();
+  }
+
+  useEffect(() => {
+    if (status !== 'COUNTDOWN') {
+      setCountdown(3);
+      return;
+    }
+    setCountdown(sessionSnapshot?.countdown ?? 3);
+    const timer = window.setInterval(() => setCountdown((value) => Math.max(1, value - 1)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [sessionSnapshot?.countdown, status]);
 
   useEffect(() => {
     if (!sessionSocket.message || sessionSocket.message.type !== 'session.snapshot') return;
@@ -149,6 +218,8 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     sessionSocket.close();
     preparation.reset();
     createSession.reset();
+    sessionAttemptRef.current = null;
+    sessionStartingRef.current = false;
     setSessionId(null);
     setStage('participant');
   }
@@ -164,14 +235,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     return (
       <SequenceTutorial
         onBack={() => setStage('participant')}
-        onReady={() => {
-          setStage('setup');
-          preparation.mutate({
-            mode: 'SEQUENCE_MEMORY',
-            displayName: participantName,
-            privacyAcknowledged: true,
-          });
-        }}
+        onReady={startPreparation}
         participantName={participantName}
       />
     );
@@ -189,11 +253,21 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
             <Gamepad2 aria-hidden className="size-9" />
             <p className="m-0 text-lg font-bold">Menyiapkan perangkat…</p>
           </div>
-        ) : preparation.isError ? (
+        ) : preparation.isError || setupTerminal || setupFailed || createSession.isError ? (
           <div className="mt-8 flex min-h-44 flex-col items-center justify-center gap-3 rounded-md border-2 border-divider p-6 text-center text-muted" role="alert">
             <AlertTriangle aria-hidden className="size-9" />
-            <p className="m-0 text-lg font-bold">{messageOf(preparation.error)}</p>
-            <Button onClick={() => setStage('tutorial')} variant="secondary">Kembali ke tutorial</Button>
+            <p className="m-0 text-lg font-bold">
+              {preparation.isError
+                ? messageOf(preparation.error)
+                : createSession.isError
+                  ? messageOf(createSession.error)
+                  : setupTerminal
+                    ? 'Persiapan perangkat berakhir. Coba lagi.'
+                    : 'Perangkat belum terhubung. Coba lagi.'}
+            </p>
+            <Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">
+              {createSession.isPending || preparation.isPending ? 'Mencoba lagi…' : 'Coba lagi'}
+            </Button>
           </div>
         ) : (
           <div className="mt-8 rounded-md border-2 border-divider p-6">
@@ -207,7 +281,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
               </div>
               <span className="inline-flex items-center gap-2 text-base font-black text-muted">
                 {canStart && <CheckCircle2 aria-hidden className="size-5 text-success" />}
-                {canStart ? 'Tombol siap. Mari mulai mengingat.' : 'Cek tombol merah'}
+                {canStart ? 'Perangkat siap. Permainan segera dimulai.' : 'Memvalidasi perangkat…'}
               </span>
             </div>
             <div className="mx-auto mt-7 grid max-w-md grid-cols-2 gap-5 rounded-lg bg-[#171717] p-6">
@@ -216,32 +290,6 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
                 return <div className="grid place-items-center gap-2" key={tile.code}><span className="relative block size-20">{checked && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}<span className={`relative block size-full rounded-full border-8 border-[#080808] ${checked ? 'brightness-125' : ''}`} style={{ backgroundColor: tile.color, filter: checked ? `drop-shadow(0 0 20px ${tile.color})` : 'none' }} /></span><strong className="text-sm text-white">{tile.label}</strong></div>;
               })}
             </div>
-            {(setupSocket.protocolError || setupSocket.status === 'FAILED') && (
-              <p className="mt-5 mb-0 text-base font-bold text-muted" role="status">Periksa kabel dan perangkat, lalu coba lagi.</p>
-            )}
-            <div className="mt-7 flex flex-wrap justify-between gap-3 border-t-2 border-divider pt-6">
-              <Button onClick={() => setStage('tutorial')} variant="quiet">Kembali</Button>
-              <Button
-                disabled={!canStart || createSession.isPending}
-                onClick={async () => {
-                  if (!preparation.data) return;
-                  try {
-                    const created = await createSession.mutateAsync({
-                      preparationId: preparation.data.preparationId,
-                      idempotencyKey: crypto.randomUUID(),
-                    });
-                    setSessionId(created.sessionId);
-                    preparation.reset();
-                    setStage('session');
-                  } catch {
-                    return;
-                  }
-                }}
-              >
-                {createSession.isPending ? 'Menyiapkan sesi…' : 'Mulai permainan'}
-              </Button>
-            </div>
-            {createSession.isError && <p className="mt-4 mb-0 text-base font-bold text-danger" role="alert">{messageOf(createSession.error)}</p>}
           </div>
         )}
       </section>
@@ -279,7 +327,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
         <div>
           <p className="landing-eyebrow">{participantName}</p>
           {status === 'COUNTDOWN' ? (
-            <><p className="m-0 text-[8rem] leading-none font-black text-accent">{sessionSnapshot?.countdown ?? 3}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></>
+            <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></>
           ) : (
             <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan—tunggu sebentar</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>
           )}
