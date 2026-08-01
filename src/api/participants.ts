@@ -2,6 +2,7 @@ import {
   CreateParticipantRequestSchema,
   HistoryPageDtoSchema,
   LeaderboardDtoSchema,
+  ParticipantDetailDtoSchema,
   ParticipantDtoSchema,
   ParticipantSearchQuerySchema,
   ParticipantSearchResponseSchema,
@@ -11,6 +12,7 @@ import {
   type GameMode,
   type HistoryPageDto,
   type LeaderboardDto,
+  type ParticipantDetailDto,
   type ParticipantDto,
 } from '@/schemas';
 import type { z } from 'zod';
@@ -54,8 +56,8 @@ export function resolveParticipant(
   );
 }
 
-export function getParticipant(participantId: string): Promise<ParticipantDto> {
-  return apiGet(API_ENDPOINTS.participants.detail(participantId), ParticipantDtoSchema);
+export function getParticipant(participantId: string): Promise<ParticipantDetailDto> {
+  return apiGet(API_ENDPOINTS.participants.detail(participantId), ParticipantDetailDtoSchema);
 }
 
 export function getParticipantSessions(

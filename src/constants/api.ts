@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
   dashboard: {
     summary: '/api/v1/dashboard/summary',
     activity: '/api/v1/dashboard/activity',
+    leaderboard: '/api/v1/dashboard/leaderboard',
     progress: '/api/v1/dashboard/progress',
   },
   games: {

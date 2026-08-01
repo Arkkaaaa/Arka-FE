@@ -176,15 +176,9 @@ export function ProfilePage() {
                 ) : (
                   <span aria-hidden className="grid size-full place-items-center bg-gradient-to-br from-brand to-[#ffdd7e] text-2xl font-black">{initials(name || 'A')}</span>
                 )}
-                <span aria-hidden className="absolute inset-0 flex items-center justify-center gap-2 bg-ink/0 text-white opacity-0 transition-[background-color,opacity] group-hover:bg-ink/60 group-hover:opacity-100 group-focus-within:bg-ink/60 group-focus-within:opacity-100">
-                  <Camera className="size-7" />
-                  {image && <ImageOff className="size-6" />}
-                </span>
+                <span aria-hidden className="absolute inset-0 grid place-items-center bg-ink/0 text-white opacity-0 transition-[background-color,opacity] group-hover:bg-ink/60 group-hover:opacity-100 group-focus-within:bg-ink/60 group-focus-within:opacity-100"><Camera className="size-7" /></span>
               </button>
-              <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 z-10 -translate-x-1/2 gap-2 rounded-full bg-white p-2 ${avatarMenuOpen ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
-                <button aria-label="Pilih foto" className="grid size-10 place-items-center rounded-full text-ink hover:bg-divider" onClick={() => imageRef.current?.click()} type="button"><Camera aria-hidden className="size-5" /></button>
-                {image && <button aria-label="Hapus foto" className="grid size-10 place-items-center rounded-full text-danger hover:bg-danger-soft" onClick={() => { setImage(''); clearProfileError('image'); }} type="button"><ImageOff aria-hidden className="size-5" /></button>}
-              </div>
+
               <input
                 accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
@@ -239,6 +233,21 @@ export function ProfilePage() {
           </section>
         </div>
       </main>
+      {avatarMenuOpen && (
+        <div aria-labelledby="avatar-menu-title" aria-modal="true" className="fixed inset-0 z-[90] grid place-items-center bg-ink/65 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setAvatarMenuOpen(false); }} role="dialog">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 text-ink shadow-[0_8px_0_rgba(23,23,17,0.28)] sm:p-8">
+            <div className="flex items-center gap-4">
+              <span className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft"><Camera aria-hidden className="size-7" /></span>
+              <div><h2 className="m-0 text-2xl font-black" id="avatar-menu-title">Ubah foto profil</h2><p className="mt-1 mb-0 text-muted">Pilih tindakan untuk foto akun.</p></div>
+            </div>
+            <div className="mt-7 grid gap-3">
+              <Button className="w-full" onClick={() => { setAvatarMenuOpen(false); imageRef.current?.click(); }}><Camera aria-hidden className="size-5" />Pilih foto baru</Button>
+              {image && <Button className="w-full" onClick={() => { setImage(''); setAvatarMenuOpen(false); clearProfileError('image'); setProfileMessage('Foto akan dihapus setelah perubahan disimpan.'); }} variant="danger"><ImageOff aria-hidden className="size-5" />Hapus foto</Button>}
+              <Button className="w-full" onClick={() => setAvatarMenuOpen(false)} variant="quiet">Batal</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {cropFile && (
         <AvatarCropDialog
           file={cropFile}

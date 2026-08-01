@@ -15,6 +15,10 @@ import { LeaderboardPage } from './pages/leaderboard/index.tsx';
 import { MissionPage } from './pages/mission/index.tsx';
 import { OnboardingPage } from './pages/onboarding/index.tsx';
 import { ProfilePage } from './pages/profile/index.tsx';
+import { ParticipantDetailPage } from './pages/participants/detail/index.tsx';
+import { ParticipantHistoryPage } from './pages/participants/history/index.tsx';
+import { RankingsPage } from './pages/rankings/index.tsx';
+import { SessionDetailPage } from './pages/sessions/detail/index.tsx';
 
 function AuthTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion();
@@ -68,6 +72,10 @@ export function App() {
             <Route element={<LandingPage />} path={ROUTES.landing} />
             <Route element={<DashboardPage />} path={ROUTES.dashboard} />
             <Route element={<LeaderboardPage />} path={ROUTES.progressBoard} />
+            <Route element={<RankingsPage />} path={ROUTES.rankings} />
+            <Route element={<ParticipantDetailPage />} path={ROUTE_PATTERNS.participant} />
+            <Route element={<ParticipantHistoryPage />} path={ROUTE_PATTERNS.participantHistory} />
+            <Route element={<SessionDetailPage />} path={ROUTE_PATTERNS.session} />
             <Route element={<ProfilePage />} path={ROUTES.profile} />
             <Route element={<GameModePage />} path={ROUTE_PATTERNS.participantEntry} />
             <Route element={<MissionPage />} path={ROUTES.mission} />

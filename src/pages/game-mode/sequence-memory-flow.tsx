@@ -72,6 +72,48 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   );
 }
 
+function LevelLatencyChart({ data }: { data: ReadonlyArray<{ level: number; latencyMs: number }> }) {
+  if (data.length === 0) return null;
+  const width = 720;
+  const height = 260;
+  const left = 52;
+  const right = 34;
+  const top = 38;
+  const bottom = 44;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const maxLatency = Math.max(...data.map((point) => point.latencyMs), 1);
+  const points = data.map((point, index) => ({
+    ...point,
+    x: left + (index / Math.max(data.length - 1, 1)) * plotWidth,
+    y: top + plotHeight - (point.latencyMs / maxLatency) * plotHeight,
+  }));
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ');
+
+  return (
+    <section className="mt-7 rounded-md border-2 border-divider bg-white p-5 sm:p-6" aria-labelledby="latency-chart-title">
+      <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Waktu respons</p>
+      <h2 className="mt-2 mb-0 text-2xl font-black" id="latency-chart-title">Latensi per level</h2>
+      <div className="mt-5 overflow-x-auto">
+        <svg aria-label="Grafik garis latensi jawaban per level" className="h-auto min-w-[34rem] w-full" role="img" viewBox={`0 0 ${width} ${height}`}>
+          {[0, 0.5, 1].map((ratio) => {
+            const y = top + plotHeight * ratio;
+            return <line key={ratio} stroke="#e7e3d7" strokeWidth="2" x1={left} x2={left + plotWidth} y1={y} y2={y} />;
+          })}
+          {points.length > 1 && <polyline fill="none" points={line} stroke="#399267" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />}
+          {points.map((point) => (
+            <g key={point.level}>
+              <circle cx={point.x} cy={point.y} fill="white" r="7" stroke="#399267" strokeWidth="3" />
+              <text fill="#171711" fontSize="14" fontWeight="800" textAnchor="middle" x={point.x} y={point.y - 15}>{Math.round(point.latencyMs)} ms</text>
+              <text fill="#625f54" fontSize="14" fontWeight="700" textAnchor="middle" x={point.x} y={height - 12}>Level {point.level}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
 function SequenceResult({ snapshot, onReplay }: { snapshot: SessionSnapshot; onReplay: () => void }) {
   const result = snapshot.result;
   const metrics = result?.metrics.mode === 'SEQUENCE_MEMORY' ? result.metrics : null;
@@ -82,7 +124,6 @@ function SequenceResult({ snapshot, onReplay }: { snapshot: SessionSnapshot; onR
     <section aria-labelledby="result-title">
       <p className="landing-eyebrow">Sesi tersimpan</p>
       <h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="result-title">Hasil sesi {snapshot.displayName}</h1>
-      <p className="mt-4 mb-0 rounded-sm bg-brand-soft p-4 text-lg font-bold">Bagus sudah menyelesaikan permainan.</p>
       <p className="mt-4 mb-0 text-base font-bold text-muted">Hasil permainan ini bukan diagnosis atau rekomendasi terapi.</p>
       <dl className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-md border-2 border-divider p-5"><dt className="text-base font-bold text-muted">Memory Span</dt><dd className="mt-2 ml-0 text-4xl font-black">Level {metrics.maxSequenceLength}</dd></div>
@@ -92,6 +133,7 @@ function SequenceResult({ snapshot, onReplay }: { snapshot: SessionSnapshot; onR
         <div className="rounded-md border-2 border-divider p-5"><dt className="text-base font-bold text-muted">Percobaan salah</dt><dd className="mt-2 ml-0 text-4xl font-black">{metrics.wrongAttempts}</dd></div>
         <div className="rounded-md border-2 border-divider p-5"><dt className="text-base font-bold text-muted">Permainan selesai karena</dt><dd className="mt-2 ml-0 text-xl font-black">{metrics.completionReason === 'LEVEL_CAP_REACHED' ? 'Semua level selesai' : 'Kesempatan habis'}</dd></div>
       </dl>
+      <LevelLatencyChart data={metrics.levelLatencies} />
       <div className="mt-7 flex flex-wrap gap-3">
         <Button onClick={onReplay}>Main lagi</Button>
         <Link className={buttonClassName('secondary')} to={ROUTES.progressBoard}>Lihat Progress Board</Link>
@@ -119,8 +161,8 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
+  const [pauseCommand, setPauseCommand] = useState<'PAUSE' | 'RESUME' | null>(null);
   const [abortDialogOpen, setAbortDialogOpen] = useState(false);
-  const [muted] = useState(false);
   const sessionAttemptRef = useRef<{ preparationId: string; idempotencyKey: string } | null>(null);
   const sessionStartingRef = useRef(false);
   const sessionRecoveryRef = useRef<string | null>(null);
@@ -141,9 +183,10 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
   const persistedStatus = persistedSession.data?.status;
   const status =
-    persistedStatus && persistedStatus !== 'BINDING'
+    sessionSnapshot?.status ??
+    (persistedStatus && persistedStatus !== 'BINDING'
       ? persistedStatus
-      : sessionSnapshot?.status ?? createSession.data?.status ?? 'BINDING';
+      : createSession.data?.status ?? 'BINDING');
   const setupTerminal = setupSnapshot?.state === 'CANCELLED' || setupSnapshot?.state === 'EXPIRED';
   const setupFailed = setupSocket.status === 'FAILED' || setupSocket.protocolError !== null;
 
@@ -213,7 +256,6 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
   }, [status]);
 
   useEffect(() => {
-    if (muted) return;
     if (status === 'COUNTDOWN' && countdown > 0 && countdownToneRef.current !== countdown) {
       countdownToneRef.current = countdown;
       playCountdownTone(countdown);
@@ -224,7 +266,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       playStartTone();
     }
     if (status !== 'COUNTDOWN' && status !== 'PLAYING') countdownToneRef.current = null;
-  }, [countdown, muted, status]);
+  }, [countdown, status]);
 
   useEffect(() => {
     const dialog = abortDialogRef.current;
@@ -232,6 +274,20 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
     if (abortDialogOpen && !dialog.open) dialog.showModal();
     if (!abortDialogOpen && dialog.open) dialog.close();
   }, [abortDialogOpen]);
+
+  useEffect(() => {
+    if (
+      (pauseCommand === 'PAUSE' && status === 'PAUSED') ||
+      (pauseCommand === 'RESUME' && status === 'PLAYING')
+    )
+      setPauseCommand(null);
+  }, [pauseCommand, status]);
+
+  function togglePause() {
+    const command = status === 'PAUSED' ? 'RESUME' : 'PAUSE';
+    setPauseCommand(command);
+    if (!sessionSocket.sendCommand(command)) setPauseCommand(null);
+  }
 
   function closeAbortDialog() {
     setAbortDialogOpen(false);
@@ -294,55 +350,67 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
 
   if (stage === 'setup') {
     return (
-      <section aria-labelledby="setup-title">
-        <p className="landing-eyebrow">Persiapan untuk {participantName}</p>
-        <h1 className="m-0 text-4xl font-black tracking-[-0.05em]" id="setup-title">Siapkan empat tombol</h1>
-        <p className="mt-4 mb-0 text-lg text-muted">Perangkat akan dipilih dan divalidasi otomatis oleh sistem.</p>
+      <section className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[78rem] flex-col justify-center py-8" aria-labelledby="setup-title">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+          <div>
+            <p className="landing-eyebrow">Persiapan untuk {participantName}</p>
+            <h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan perangkat tombol</h1>
+            <p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">Satu perangkat dengan empat tombol akan diperiksa otomatis sebelum permainan dimulai.</p>
+            <div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5">
+              <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p>
+              <div className="mt-4 flex items-center gap-4">
+                <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span>
+                <div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? 'Perangkat tombol'}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">1 perangkat · 4 tombol fisik</p></div>
+              </div>
+            </div>
+          </div>
 
-        {preparation.isPending ? (
-          <div className="mt-8 flex min-h-44 flex-col items-center justify-center gap-3 rounded-md border-2 border-divider p-6 text-center text-muted" role="status">
-            <Gamepad2 aria-hidden className="size-9" />
-            <p className="m-0 text-lg font-bold">Menyiapkan perangkat…</p>
-          </div>
-        ) : preparation.isError || setupTerminal || setupFailed || createSession.isError ? (
-          <div className="mt-8 flex min-h-44 flex-col items-center justify-center gap-3 rounded-md border-2 border-divider p-6 text-center text-muted" role="alert">
-            <AlertTriangle aria-hidden className="size-9" />
-            <p className="m-0 text-lg font-bold">
-              {preparation.isError
-                ? messageOf(preparation.error)
-                : createSession.isError
-                  ? messageOf(createSession.error)
-                  : setupTerminal
-                    ? 'Persiapan perangkat berakhir. Coba lagi.'
-                    : 'Perangkat belum terhubung. Coba lagi.'}
-            </p>
-            <Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">
-              {createSession.isPending || preparation.isPending ? 'Mencoba lagi…' : 'Coba lagi'}
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-8 rounded-md border-2 border-divider p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span aria-hidden className="grid size-12 place-items-center rounded-full bg-divider"><Gamepad2 className="size-6" /></span>
-                <div>
-                  <h2 className="m-0 text-2xl font-black">{preparation.data?.device.label}</h2>
-                  <p className="mt-1 mb-0 text-base font-bold text-muted">{setupSnapshot?.instruction ?? 'Menghubungkan perangkat.'}</p>
+          {preparation.isPending ? (
+            <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="status">
+              <span className="grid size-16 place-items-center rounded-full bg-brand-soft"><Gamepad2 aria-hidden className="size-8 animate-pulse" /></span>
+              <p className="m-0 text-xl font-black">Menyiapkan perangkat…</p>
+              <p className="m-0 max-w-sm leading-7">Sistem sedang memilih dan menghubungkan satu perangkat.</p>
+            </div>
+          ) : preparation.isError || setupTerminal || setupFailed || createSession.isError ? (
+            <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="alert">
+              <span className="grid size-16 place-items-center rounded-full bg-danger-soft"><AlertTriangle aria-hidden className="size-8 text-danger" /></span>
+              <p className="m-0 max-w-md text-lg font-bold">
+                {preparation.isError
+                  ? messageOf(preparation.error)
+                  : createSession.isError
+                    ? messageOf(createSession.error)
+                    : setupTerminal
+                      ? 'Persiapan perangkat berakhir. Coba lagi.'
+                      : 'Perangkat belum terhubung. Coba lagi.'}
+              </p>
+              <Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">{createSession.isPending || preparation.isPending ? 'Mencoba lagi…' : 'Coba lagi'}</Button>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border-2 border-ink bg-white/95 shadow-[0_7px_0_#d9d4c5]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-5 py-4 sm:px-6">
+                <div><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Tes tombol</p><p className="mt-1 mb-0 font-bold text-muted">{setupSnapshot?.instruction ?? 'Menghubungkan perangkat.'}</p></div>
+                <span className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black ${canStart ? 'bg-brand-soft text-success' : 'bg-divider text-muted'}`}>{canStart ? <CheckCircle2 aria-hidden className="size-5" /> : <span aria-hidden className="size-2 animate-pulse rounded-full bg-accent" />}{canStart ? 'Siap' : 'Memvalidasi'}</span>
+              </div>
+              <div className="bg-gradient-to-br from-[#22221f] via-[#11110f] to-[#28261e] p-6 sm:p-8">
+                <div className="mx-auto grid max-w-lg grid-cols-2 gap-5 sm:gap-7">
+                  {SEQUENCE_TILES.map((tile) => {
+                    const checked = setupSnapshot?.checkedButton === tile.code;
+                    return (
+                      <div className="grid place-items-center gap-3 rounded-md border border-white/10 bg-white/5 p-4" key={tile.code}>
+                        <span className="relative block aspect-square w-full max-w-24">
+                          {checked && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}
+                          <span className={`relative block size-full rounded-full border-8 border-[#080808] transition ${checked ? 'scale-105 brightness-125' : 'brightness-75'}`} style={{ backgroundColor: tile.color, filter: checked ? `drop-shadow(0 0 24px ${tile.color})` : 'none' }} />
+                        </span>
+                        <span className="text-center"><strong className="block text-base text-white">{tile.label}</strong><span className="mt-1 block text-xs font-bold text-white/60">{tile.icon}</span></span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              <span className="inline-flex items-center gap-2 text-base font-black text-muted">
-                {canStart && <CheckCircle2 aria-hidden className="size-5 text-success" />}
-                {canStart ? 'Perangkat siap. Permainan segera dimulai.' : 'Memvalidasi perangkat…'}
-              </span>
+              <p className="m-0 border-t-2 border-divider bg-white px-5 py-4 text-center font-black text-muted sm:px-6">{canStart ? 'Perangkat siap. Permainan segera dimulai.' : 'Tekan tombol pada perangkat untuk menyelesaikan pemeriksaan.'}</p>
             </div>
-            <div className="mx-auto mt-7 grid max-w-md grid-cols-2 gap-5 rounded-lg bg-[#171717] p-6">
-              {SEQUENCE_TILES.map((tile) => {
-                const checked = setupSnapshot?.checkedButton === tile.code;
-                return <div className="grid place-items-center gap-2" key={tile.code}><span className="relative block size-20">{checked && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}<span className={`relative block size-full rounded-full border-8 border-[#080808] ${checked ? 'brightness-125' : ''}`} style={{ backgroundColor: tile.color, filter: checked ? `drop-shadow(0 0 20px ${tile.color})` : 'none' }} /></span><strong className="text-sm text-white">{tile.label}</strong></div>;
-              })}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </section>
     );
   }
@@ -396,7 +464,7 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-5">
         <div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">Ding Dong Dong</h1></div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => sessionSocket.sendCommand(status === 'PAUSED' ? 'RESUME' : 'PAUSE')} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button>
+          <Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button>
           <button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button>
         </div>
       </div>

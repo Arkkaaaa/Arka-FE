@@ -37,11 +37,11 @@ export function AvatarCropDialog({ file, onCancel, onComplete }: AvatarCropDialo
 
   return (
     <div aria-labelledby="crop-title" aria-modal="true" className="fixed inset-0 z-[100] grid place-items-center bg-ink/65 p-4" role="dialog">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 text-ink sm:p-8">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 text-ink sm:p-8">
         <h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="crop-title">Sesuaikan foto</h2>
         <p className="mt-2 mb-0 text-base text-muted">Atur posisi foto agar pas di dalam avatar.</p>
 
-        <canvas aria-label="Pratinjau potongan foto profil" className="mx-auto mt-6 size-64 rounded-full bg-divider" height="256" ref={canvasRef} role="img" width="256" />
+        <canvas aria-label="Pratinjau potongan foto profil" className="mx-auto mt-6 aspect-square h-auto w-full max-w-64 rounded-full bg-divider" height="256" ref={canvasRef} role="img" width="256" />
 
         <div className="mt-7 grid gap-5">
           <label className="grid gap-2 text-base font-bold">Perbesar

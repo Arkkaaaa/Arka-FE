@@ -19,6 +19,7 @@ export const ROUTES = {
   onboarding: '/onboarding',
   dashboard: '/dashboard',
   progressBoard: '/progress-board',
+  rankings: '/leaderboard',
   profile: '/profile',
   mission: '/mission',
   faq: '/faq',

@@ -385,6 +385,7 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
       <form className="mt-8 grid gap-5 rounded-md border-2 border-divider p-6 sm:p-8" noValidate onSubmit={submit}>
         <div className="relative">
           <Field
+            aria-autocomplete="list"
             aria-controls={listId}
             aria-expanded={showSuggestions}
             autoComplete="off"
@@ -403,6 +404,7 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
             }}
             placeholder="Contoh: Andrian"
             required
+            role="combobox"
             trailing={<Search aria-hidden className="mr-3 size-5 text-muted" />}
             value={name}
           />
@@ -410,11 +412,11 @@ export function SequenceParticipantEntry({ csrfToken, onContinue }: SequencePart
             <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-muted" role="status"><Search aria-hidden className="size-4 animate-pulse" />Mencari peserta…</p>
           )}
           {showSuggestions && (
-            <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto rounded-sm border-2 border-ink bg-white p-1 shadow-[0_5px_0_#d9d4c5]" id={listId}>
-              <p className="px-3 py-2 text-xs font-black tracking-[0.08em] text-muted uppercase">Peserta ditemukan</p>
-              <ul className="m-0 list-none p-0">
+            <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto overscroll-contain rounded-sm border-2 border-ink bg-white p-1 shadow-[0_5px_0_#d9d4c5]">
+              <p className="sticky top-0 z-10 m-0 bg-white px-3 py-2 text-xs font-black tracking-[0.08em] text-muted uppercase">Peserta ditemukan</p>
+              <ul className="m-0 list-none p-0" id={listId} role="listbox">
                 {suggestions.map((participant) => (
-                  <li className="border-b-2 border-divider last:border-b-0" key={participant.participantId}>
+                  <li className="border-b-2 border-divider last:border-b-0" key={participant.participantId} role="option">
                     <button className="flex min-h-12 w-full items-center px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">
                       {participant.displayName}
                     </button>

@@ -17,6 +17,8 @@ export const GAME_MODES = [
     capability: 'FSR',
     illustration: athletesTrainingIllustration,
     emoji: tangerineEmoji,
+    color: '#d67b1f',
+    softColor: '#fff0df',
   },
   {
     mode: 'GO_NO_GO',
@@ -26,6 +28,8 @@ export const GAME_MODES = [
     capability: 'FSR',
     illustration: mindfulnessIllustration,
     emoji: eyesEmoji,
+    color: '#3978bd',
+    softColor: '#eaf3ff',
   },
   {
     mode: 'SEQUENCE_MEMORY',
@@ -35,6 +39,8 @@ export const GAME_MODES = [
     capability: 'BUTTONS_4',
     illustration: retroVideoGameIllustration,
     emoji: musicalNotesEmoji,
+    color: '#399267',
+    softColor: '#e8f7ef',
   },
 ] as const;
 

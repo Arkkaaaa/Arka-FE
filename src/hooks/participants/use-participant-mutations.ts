@@ -40,6 +40,8 @@ export function useUpdateParticipantMutation(participantId: string | undefined, 
         queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.participants.historyPreview(participantId),
         }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.participants.all }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.all }),
       ]);
     },
   });

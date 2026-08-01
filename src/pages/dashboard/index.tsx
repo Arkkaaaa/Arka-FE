@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { ArrowRight, BarChart3, CalendarDays, TrendingUp, UsersRound } from 'lucide-react';
+import { ArrowRight, BarChart3, CalendarDays, UsersRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { m, useReducedMotion } from 'framer-motion';
 import type { DashboardActivityDto } from '../../schemas/index.ts';
+import { clipboardEmoji, heartHandsEmoji } from '../../assets/index.ts';
 import { AccountHeader, Button } from '../../components/index.ts';
 import { ApiError, messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
@@ -219,11 +220,18 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <Link className="mt-8 grid gap-5 rounded-md border-2 border-ink bg-ink p-6 text-white no-underline transition-colors hover:bg-ink-soft sm:grid-cols-[auto_1fr_auto] sm:items-center" to={ROUTES.progressBoard}>
-          <span aria-hidden className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-brand to-[#ffdc75] text-ink"><TrendingUp className="size-7" /></span>
-          <span><strong className="block text-2xl font-black">Buka Progress Board</strong><span className="mt-1 block text-base leading-7 text-white/75">Pantau konsistensi, perkembangan, dan pencapaian setiap peserta.</span></span>
-          <ArrowRight aria-hidden className="size-7" />
-        </Link>
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          <Link className="group grid gap-5 rounded-md border-2 border-ink bg-ink p-6 text-white no-underline transition hover:-translate-y-0.5 hover:bg-ink-soft hover:shadow-[0_5px_0_#d9d4c5] sm:grid-cols-[auto_1fr_auto] sm:items-center" to={ROUTES.progressBoard}>
+            <span aria-hidden className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-brand to-[#ffdc75]"><img alt="" className="size-8" src={clipboardEmoji} /></span>
+            <span><strong className="block text-2xl font-black">Buka Progress Board</strong><span className="mt-1 block text-base leading-7 text-white/75">Pantau konsistensi dan perkembangan setiap peserta.</span></span>
+            <ArrowRight aria-hidden className="size-7 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <Link className="group grid gap-5 rounded-md border-2 border-divider bg-brand-soft p-6 text-ink no-underline transition hover:-translate-y-0.5 hover:border-ink hover:shadow-[0_5px_0_#d9d4c5] sm:grid-cols-[auto_1fr_auto] sm:items-center" to={ROUTES.rankings}>
+            <span aria-hidden className="grid size-14 place-items-center rounded-full bg-white"><img alt="" className="size-8" src={heartHandsEmoji} /></span>
+            <span><strong className="block text-2xl font-black">Buka Leaderboard</strong><span className="mt-1 block text-base leading-7 text-muted">Lihat Top 10 peserta pada setiap mode permainan.</span></span>
+            <ArrowRight aria-hidden className="size-7 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
       </main>
     </div>
   );

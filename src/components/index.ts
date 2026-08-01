@@ -9,6 +9,7 @@ export {
   Field,
   GoogleAuthButton,
   GoogleIcon,
+  Pagination,
   PasswordVisibilityButton,
   buttonClassName,
 } from './ui/index.ts';

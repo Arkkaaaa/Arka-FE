@@ -8,6 +8,7 @@ export const QUERY_KEYS = {
     all: ['dashboard'] as const,
     summary: ['dashboard', 'summary'] as const,
     activity: ['dashboard', 'activity'] as const,
+    leaderboard: (mode: GameMode) => ['dashboard', 'leaderboard', mode] as const,
     progress: ['dashboard', 'progress'] as const,
   },
   gameSessions: {
