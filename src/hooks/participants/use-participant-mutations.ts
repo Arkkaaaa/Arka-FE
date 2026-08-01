@@ -14,7 +14,7 @@ export function useCreateParticipantMutation(csrfToken: string) {
   return useMutation({
     mutationFn: (input: CreateParticipantInput) => createParticipant(input, csrfToken),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.participants.all });
+      void Promise.all([queryClient.invalidateQueries({ queryKey: QUERY_KEYS.participants.all }), queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.all })]);
     },
   });
 }
@@ -32,7 +32,8 @@ export function useUpdateParticipantMutation(participantId: string | undefined, 
       if (!participantId) throw new Error('Identitas peserta tidak tersedia');
       return updateParticipant(participantId, input, csrfToken);
     },
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(QUERY_KEYS.participants.detail(participantId), (current: unknown) => current && typeof current === 'object' ? { ...current, ...updated } : current);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.participants.detail(participantId),

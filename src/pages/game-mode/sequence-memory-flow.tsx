@@ -251,9 +251,10 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
       setCountdown(3);
       return;
     }
+    setCountdown(sessionSnapshot?.countdown ?? 3);
     const timer = window.setInterval(() => setCountdown((value) => Math.max(1, value - 1)), 1_000);
     return () => window.clearInterval(timer);
-  }, [status]);
+  }, [sessionSnapshot?.countdown, status]);
 
   useEffect(() => {
     if (status === 'COUNTDOWN' && countdown > 0 && countdownToneRef.current !== countdown) {
@@ -296,8 +297,8 @@ export function SequenceMemoryFlow({ csrfToken, onStageChange }: SequenceMemoryF
 
   function confirmAbort() {
     setAbortDialogOpen(false);
-    sessionSocket.sendCommand('ABORT');
-    navigate(ROUTES.dashboard, { replace: true });
+    if (sessionSocket.sendCommand('ABORT')) navigate(ROUTES.dashboard, { replace: true });
+    else sessionSocket.reconnect();
   }
 
   useEffect(() => {

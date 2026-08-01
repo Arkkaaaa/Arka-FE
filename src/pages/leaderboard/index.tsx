@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { DashboardProgressDto } from '../../schemas/index.ts';
-import { clipboardEmoji, heartHandsEmoji } from '../../assets/index.ts';
+import { heartHandsEmoji } from '../../assets/index.ts';
 import { AccountHeader, Field, Pagination } from '../../components/index.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
 import { ROUTES } from '../../constants/routes.ts';
@@ -29,13 +29,9 @@ function achievementLabel(status: ParticipantProgress['achievementStatus']) {
 
 function ProgressCardSkeleton() {
   return (
-    <article aria-hidden className="animate-pulse rounded-md border-2 border-divider bg-white p-5">
-      <div className="flex items-center gap-4">
-        <span className="size-12 rounded-full bg-brand-soft" />
-        <div className="flex-1"><span className="block h-7 w-44 rounded-sm bg-divider" /><span className="mt-2 block h-5 w-32 rounded-sm bg-divider/70" /></div>
-        <span className="hidden h-9 w-28 rounded-full bg-brand-soft sm:block" />
-      </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-3"><span className="h-14 rounded-sm bg-divider/70" /><span className="h-14 rounded-sm bg-divider/70" /><span className="h-14 rounded-sm bg-divider/70" /></div>
+    <article aria-hidden className="grid animate-pulse overflow-hidden rounded-md border-2 border-divider bg-white sm:grid-cols-[1fr_16rem]">
+      <div className="p-5 sm:p-6"><div className="flex items-center gap-4"><span className="size-13 rounded-full bg-brand-soft" /><div className="flex-1"><span className="block h-7 w-44 max-w-full rounded-sm bg-divider" /><span className="mt-2 block h-5 w-32 rounded-sm bg-divider/70" /></div></div><span className="mt-6 block h-3 max-w-md rounded-full bg-divider" /></div>
+      <div className="grid gap-3 border-t-2 border-divider bg-canvas/60 p-5 sm:border-t-0 sm:border-l-2 sm:p-6"><span className="h-5 w-32 rounded-sm bg-divider" /><span className="h-6 w-36 rounded-sm bg-divider" /><span className="h-5 w-24 rounded-sm bg-divider" /></div>
     </article>
   );
 }
@@ -46,8 +42,8 @@ function ProgressCard({ participant }: { participant: ParticipantProgress }) {
     <Link className="group grid overflow-hidden rounded-md border-2 border-divider bg-white text-ink no-underline transition hover:-translate-y-0.5 hover:border-ink hover:shadow-[0_5px_0_#d9d4c5] sm:grid-cols-[1fr_auto]" to={ROUTES.participant(participant.participantId)}>
       <div className="p-5 sm:p-6">
         <div className="flex min-w-0 items-center gap-4">
-          <span className="grid size-13 shrink-0 place-items-center rounded-full bg-brand-soft"><img alt="" aria-hidden className="size-8" src={clipboardEmoji} /></span>
-          <div className="min-w-0"><h2 className="m-0 truncate text-2xl font-black">{participant.displayName}</h2><p className="mt-1 mb-0 font-black text-accent">{achievementLabel(participant.achievementStatus)}</p></div>
+          <span className="grid size-13 shrink-0 place-items-center overflow-hidden rounded-full bg-brand-soft">{participant.image ? <img alt={`Foto ${participant.displayName}`} className="size-full object-cover" src={participant.image} /> : <span aria-hidden className="text-base font-black">{participant.displayName.trim().split(/\s+/u).map((part) => part[0]).slice(0, 2).join('').toLocaleUpperCase('id-ID')}</span>}</span>
+          <div className="min-w-0"><h2 className="m-0 truncate text-2xl font-black">{participant.displayName}</h2><p className="mt-1 mb-0 font-black text-accent">{achievementLabel(participant.achievementStatus)}</p><p className="mt-1 mb-0 text-sm font-bold text-muted">{participant.gender ? (participant.gender === 'MALE' ? 'Laki-laki' : 'Perempuan') : 'Gender belum diisi'}{participant.dateOfBirth ? ` · ${new Intl.DateTimeFormat('id-ID', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${participant.dateOfBirth}T00:00:00.000Z`))}` : ''}</p></div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <span className="rounded-full bg-divider/60 px-3 py-2 text-sm font-black">{progressLabel(participant.progress.status)}</span>
@@ -57,9 +53,10 @@ function ProgressCard({ participant }: { participant: ParticipantProgress }) {
           <div aria-label={`${participant.activeWeeksLast4} dari 4 pekan aktif`} className="mt-3 grid grid-cols-4 gap-2" role="img">{Array.from({ length: 4 }, (_, index) => <span className={`h-3 rounded-full ${index < participant.activeWeeksLast4 ? 'bg-brand shadow-[0_2px_0_#c89d20]' : 'bg-divider'}`} key={index} />)}</div>
         </div>
       </div>
-      <div className="flex min-w-0 items-center justify-between gap-5 border-t-2 border-divider bg-canvas/60 p-5 sm:flex-col sm:items-start sm:justify-center sm:border-t-0 sm:border-l-2">
-        <div>{lastMode ? <span className="flex items-center gap-2 text-sm font-black text-muted"><img alt="" aria-hidden className="size-6" src={lastMode.emoji} />Aktivitas terakhir</span> : <span className="text-sm font-black text-muted">Belum mulai latihan</span>}<strong className="mt-2 block">{participant.lastSession ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(participant.lastSession.completedAt)) : 'Siap untuk sesi pertama'}</strong></div>
-        <span className="font-black text-accent">Buka detail <span aria-hidden className="inline-block transition-transform group-hover:translate-x-1">→</span></span>
+      <div className="grid min-w-0 grid-cols-[1fr_auto] items-center gap-4 border-t-2 border-divider bg-canvas/60 p-5 sm:w-64 sm:grid-cols-1 sm:grid-rows-[1.5rem_2rem_1.5rem] sm:items-start sm:border-t-0 sm:border-l-2 sm:p-6">
+        <span className="flex h-6 items-center gap-2 text-sm font-black text-muted">{lastMode && <img alt="" aria-hidden className="size-6" src={lastMode.emoji} />}{lastMode ? 'Aktivitas terakhir' : 'Belum mulai latihan'}</span>
+        <strong className="block self-center">{participant.lastSession ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(participant.lastSession.completedAt)) : 'Siap untuk sesi pertama'}</strong>
+        <span className="font-black text-accent sm:self-end">Buka detail <span aria-hidden className="inline-block transition-transform group-hover:translate-x-1">→</span></span>
       </div>
     </Link>
   );

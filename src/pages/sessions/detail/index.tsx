@@ -22,12 +22,12 @@ function SequenceLatencyChart({ metrics }: { metrics: Extract<GameMetrics, { mod
   const reduceMotion = useReducedMotion();
   const latencyData = metrics.levelLatencies;
   if (latencyData.length === 0) return <section className="mt-7 grid min-h-48 place-items-center text-center text-muted"><div><p className="m-0 text-lg font-black">Data waktu reaksi belum tersedia</p><p className="mt-2 mb-0">Grafik akan muncul pada permainan berikutnya.</p></div></section>;
-  const width = 720;
-  const height = 260;
-  const left = 52;
-  const right = 34;
-  const top = 38;
-  const bottom = 44;
+  const width = 640;
+  const height = 210;
+  const left = 48;
+  const right = 28;
+  const top = 34;
+  const bottom = 38;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const maxLatency = Math.max(...latencyData.map((point) => point.latencyMs), 1);
@@ -36,7 +36,7 @@ function SequenceLatencyChart({ metrics }: { metrics: Extract<GameMetrics, { mod
   return (
     <section aria-labelledby="session-chart-title" className="mt-7 rounded-md border-2 border-divider bg-white p-5 sm:p-6">
       <p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Waktu respons</p><h2 className="mt-2 mb-0 text-2xl font-black" id="session-chart-title">Latensi per level</h2>
-      <div className="mt-5 overflow-x-auto"><svg aria-label="Grafik garis latensi jawaban per level" className="h-auto min-w-[34rem] w-full" role="img" viewBox={`0 0 ${width} ${height}`}>{[0, 0.5, 1].map((ratio) => { const y = top + plotHeight * ratio; return <line key={ratio} stroke="#e7e3d7" strokeWidth="2" x1={left} x2={left + plotWidth} y1={y} y2={y} />; })}{points.length > 1 && <m.polyline animate={{ pathLength: 1, opacity: 1 }} fill="none" initial={reduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }} points={line} stroke="#399267" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" transition={{ duration: 0.8, ease: 'easeOut' }} />}{points.map((point, index) => <m.g animate={{ opacity: 1, scale: 1 }} initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4 }} key={point.level} style={{ transformBox: 'fill-box', transformOrigin: 'center' }} transition={{ delay: reduceMotion ? 0 : index * 0.12, duration: 0.3 }}><circle cx={point.x} cy={point.y} fill="white" r="7" stroke="#399267" strokeWidth="3" /><text fill="#171711" fontSize="14" fontWeight="800" textAnchor="middle" x={point.x} y={point.y - 15}>{Math.round(point.latencyMs)} ms</text><text fill="#625f54" fontSize="14" fontWeight="700" textAnchor="middle" x={point.x} y={height - 12}>Level {point.level}</text></m.g>)}</svg></div>
+      <div className="mx-auto mt-5 max-w-3xl overflow-x-auto"><svg aria-label="Grafik garis latensi jawaban per level" className="h-auto min-w-[30rem] w-full" role="img" viewBox={`0 0 ${width} ${height}`}>{[0, 0.5, 1].map((ratio) => { const y = top + plotHeight * ratio; return <line key={ratio} stroke="#e7e3d7" strokeWidth="2" x1={left} x2={left + plotWidth} y1={y} y2={y} />; })}{points.length > 1 && <m.polyline animate={{ pathLength: 1, opacity: 1 }} fill="none" initial={reduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }} points={line} stroke="#399267" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" transition={{ duration: 0.8, ease: 'easeOut' }} />}{points.map((point, index) => <m.g animate={{ opacity: 1, scale: 1 }} initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4 }} key={point.level} style={{ transformBox: 'fill-box', transformOrigin: 'center' }} transition={{ delay: reduceMotion ? 0 : index * 0.12, duration: 0.3 }}><circle cx={point.x} cy={point.y} fill="white" r="7" stroke="#399267" strokeWidth="3" /><text fill="#171711" fontSize="14" fontWeight="800" textAnchor="middle" x={point.x} y={point.y - 15}>{Math.round(point.latencyMs)} ms</text><text fill="#625f54" fontSize="14" fontWeight="700" textAnchor="middle" x={point.x} y={height - 12}>Level {point.level}</text></m.g>)}</svg></div>
     </section>
   );
 }

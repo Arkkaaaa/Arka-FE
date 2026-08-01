@@ -242,7 +242,7 @@ export function ProfilePage() {
             </div>
             <div className="mt-7 grid gap-3">
               <Button className="w-full" onClick={() => { setAvatarMenuOpen(false); imageRef.current?.click(); }}><Camera aria-hidden className="size-5" />Pilih foto baru</Button>
-              {image && <Button className="w-full" onClick={() => { setImage(''); setAvatarMenuOpen(false); clearProfileError('image'); setProfileMessage('Foto akan dihapus setelah perubahan disimpan.'); }} variant="danger"><ImageOff aria-hidden className="size-5" />Hapus foto</Button>}
+              {image && <Button className="w-full" disabled={updateProfile.isPending} onClick={async () => { setProfileErrors({}); setProfileMessage(''); try { await updateProfile.mutateAsync({ name: name.trim(), image: null, institutionName: institutionName.trim() }); setImage(''); setAvatarMenuOpen(false); setProfileMessage('Foto profil berhasil dihapus.'); } catch (error) { setProfileMessage(messageOf(error)); } }} variant="danger"><ImageOff aria-hidden className="size-5" />{updateProfile.isPending ? 'Menghapus…' : 'Hapus foto'}</Button>}
               <Button className="w-full" onClick={() => setAvatarMenuOpen(false)} variant="quiet">Batal</Button>
             </div>
           </div>
