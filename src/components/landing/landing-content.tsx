@@ -43,13 +43,13 @@ const GAMES = [
   {
     emoji: tangerineEmoji,
     illustration: athletesTrainingIllustration,
-    title: 'Peras Jeruk',
+    title: 'Peras Buah',
     detail: 'Genggam alat dan tahan dengan nyaman.',
   },
   {
     emoji: eyesEmoji,
     illustration: mindfulnessIllustration,
-    title: 'Tangkap Wayang',
+    title: 'Go-No-Go',
     detail: 'Genggam saat gambar Wayang muncul.',
   },
   {

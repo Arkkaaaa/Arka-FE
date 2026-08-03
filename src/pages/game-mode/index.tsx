@@ -14,6 +14,7 @@ export function GameModePage() {
 
   if (!mode) return <Navigate replace to={ROUTES.dashboard} />;
   const immersive = stage === 'tutorial' || stage === 'setup' || stage === 'session';
+  const viewportStage = stage === 'tutorial' || stage === 'session';
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
@@ -21,9 +22,9 @@ export function GameModePage() {
       {stage === 'setup' && <div aria-hidden className="landing-glow landing-glow-yellow -bottom-48 -left-52 size-[36rem] opacity-45" />}
       {!immersive && <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>}
       {!immersive && <AccountHeader isSigningOut={signOut.isPending} onSignOut={() => session.data && signOut.mutate(session.data)} user={session.data} />}
-      <main className={immersive ? 'relative min-h-dvh w-full px-4 py-5 outline-none sm:px-8 lg:px-12' : 'relative mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12'} id="game-mode-main" tabIndex={-1}>
+      <main className={viewportStage ? 'relative h-dvh w-full overflow-hidden px-4 py-3 outline-none sm:px-8 lg:px-12' : immersive ? 'relative min-h-dvh w-full px-4 py-5 outline-none sm:px-8 lg:px-12' : 'relative mx-auto w-full max-w-[78rem] px-4 py-8 outline-none sm:px-6 lg:px-8 lg:py-12'} id="game-mode-main" tabIndex={-1}>
         {!immersive && <Link className="group inline-flex min-h-11 items-center gap-2 font-black no-underline" to={ROUTES.dashboard}><ArrowLeft aria-hidden className="size-5" /><span className="relative after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:bg-ink after:transition-transform group-hover:after:scale-x-100 group-focus-visible:after:scale-x-100">Kembali ke dashboard</span></Link>}
-        <div className={immersive ? '' : 'mt-8'}><GameFlow csrfToken={session.data?.csrfToken ?? ''} mode={mode} onStageChange={setStage} /></div>
+        <div className={viewportStage ? 'h-full min-h-0' : immersive ? '' : 'mt-8'}><GameFlow csrfToken={session.data?.csrfToken ?? ''} mode={mode} onStageChange={setStage} /></div>
       </main>
     </div>
   );

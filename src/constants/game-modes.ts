@@ -11,7 +11,7 @@ import {
 export const GAME_MODES = [
   {
     mode: 'MOTOR_GRIP',
-    title: 'Peras Jeruk',
+    title: 'Peras Buah',
     detail: 'Latihan menggenggam dan mempertahankan genggaman yang nyaman.',
     device: 'Genggam alat',
     capability: 'FSR',
@@ -22,7 +22,7 @@ export const GAME_MODES = [
   },
   {
     mode: 'GO_NO_GO',
-    title: 'Tangkap Wayang',
+    title: 'Go-No-Go',
     detail: 'Latihan perhatian dengan menggenggam hanya saat Wayang muncul.',
     device: 'Genggam alat',
     capability: 'FSR',

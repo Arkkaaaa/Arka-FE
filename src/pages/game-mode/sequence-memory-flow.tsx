@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Gamepad2, Hand, Pause, Play, Volume2 } from 'lucide-react';
+import { m } from 'framer-motion';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Gamepad2, Hand, Pause, Play } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AppServerMessage, GameMode } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
-import { randomFruitVariant, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
+import { AiSummaryPanels } from '../../components/ai-summary-panels.tsx';
+import { GameResultChart } from '../../components/game-result-charts.tsx';
+import { ResultStats } from '../../components/result-stats.tsx';
+import { fruitLabel, randomFruitVariant, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
-import { GO_NO_GO_STIMULUS_LABELS, goNoGoStimulusAsset, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
+import { GO_NO_GO_STIMULUS_LABELS, goNoGoStimulusAsset, goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
 import { useGameSessionQuery } from '../../hooks/games/use-game-session-query.ts';
@@ -18,7 +22,6 @@ import {
   playSequenceTone,
   playStartTone,
   resumeGameAudio,
-  SequenceConsole,
   SEQUENCE_TILES,
   type GameParticipantIdentity,
 } from './sequence-tutorial.tsx';
@@ -27,6 +30,16 @@ type SessionSnapshot = Extract<AppServerMessage, { type: 'session.snapshot' }>['
 type SetupSnapshot = Extract<AppServerMessage, { type: 'setup.snapshot' }>['payload'];
 
 type GripSample = { elapsedSecond: number; gripPercent: number; kilograms: number };
+
+function playTurnCue(): void {
+  const audio = new Audio('/turn.m4a');
+  const stopCue = window.setTimeout(() => {
+    audio.pause();
+    audio.currentTime = 0;
+  }, 2_500);
+  audio.addEventListener('ended', () => window.clearTimeout(stopCue), { once: true });
+  void audio.play().catch(() => window.clearTimeout(stopCue));
+}
 
 function formatCountdown(milliseconds: number): string {
   const seconds = Math.max(0, Math.ceil(milliseconds / 1_000));
@@ -70,7 +83,7 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === visual?.activeItem);
   const lastCueId = useRef<string | null>(null);
-  const responseRemaining = visual ? Math.max(visual.sequenceLength - visual.responseIndex, 0) : 0;
+  const previousPhase = useRef<'EXAMPLE' | 'RESPONSE' | 'FEEDBACK' | null>(null);
   const instruction = visual?.feedback === 'ONE_BUTTON'
     ? 'Tekan satu tombol saja.'
     : visual?.feedback === 'REPEAT'
@@ -85,11 +98,26 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
     playSequenceTone(activeTile.frequency, 260);
   }, [activeTile, visual?.cueId]);
 
+  useEffect(() => {
+    const phase = visual?.phase ?? null;
+    if (phase === 'RESPONSE' && previousPhase.current !== 'RESPONSE') playTurnCue();
+    previousPhase.current = phase;
+  }, [visual?.phase]);
+
+  const idleBackground = `conic-gradient(from -45deg, ${SEQUENCE_TILES.map((tile, index) => `${tile.color} ${index * 25}% ${(index + 1) * 25}%`).join(', ')})`;
+  const buttonLabel = activeTile ? `Warna ${activeTile.label}` : visual?.phase === 'RESPONSE' ? 'Tekan tombol fisik sesuai urutan' : 'Tombol empat warna';
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="m-0 text-2xl font-black">{instruction}</p><span className="rounded-full bg-brand-soft px-4 py-2 text-sm font-black">Sisa kesempatan {visual?.remainingAttempts ?? 3}</span></div>
-      {visual?.phase === 'RESPONSE' && <p className="mt-2 mb-0 font-bold text-muted">Sisa {responseRemaining} tombol</p>}
-      <div className="mt-3"><SequenceConsole activeCode={visual?.activeItem ?? null} phase={visual?.phase === 'RESPONSE' ? 'RESPOND' : 'WATCH'} /></div>
+      <div className="mt-10 grid place-items-center text-center">
+        <div className="relative grid size-64 place-items-center sm:size-80">
+          {activeTile && <><span aria-hidden className="absolute inset-5 animate-ping rounded-full opacity-20" style={{ backgroundColor: activeTile.color }} /><span aria-hidden className="absolute inset-1 rounded-full opacity-25 blur-2xl" style={{ backgroundColor: activeTile.color }} /></>}
+          <m.div animate={{ scale: activeTile ? 1.05 : 1, y: activeTile ? -4 : 0 }} aria-label={buttonLabel} className={`relative size-52 rounded-full border-[12px] border-[#080808] sm:size-64 ${activeTile ? '' : 'saturate-[0.7] brightness-[0.72]'}`} role="img" style={{ background: activeTile ? `radial-gradient(circle at 34% 27%, white 0 4%, ${activeTile.color} 8% 58%, color-mix(in srgb, ${activeTile.color}, black 35%) 100%)` : idleBackground, boxShadow: activeTile ? `0 0 0 7px ${activeTile.color}55,0 0 38px ${activeTile.color},inset 0 -22px 26px rgba(0,0,0,.28),0 10px 0 #050505` : 'inset 0 -22px 26px rgba(0,0,0,.28),0 10px 0 #050505' }} transition={{ duration: 0.14 }}><span aria-hidden className="absolute inset-x-10 top-5 h-8 rotate-[-12deg] rounded-full bg-white/28 blur-[1px]" /></m.div>
+        </div>
+        <p className="mt-2 mb-0 text-2xl font-black">{activeTile ? activeTile.label : visual?.phase === 'RESPONSE' ? 'Tekan tombol fisik sesuai urutan' : 'Bersiap melihat warna'}</p>
+        <p className="mt-2 mb-0 max-w-md font-bold text-muted">Satu tombol akan menyala bergantian dalam empat warna.</p>
+      </div>
     </div>
   );
 }
@@ -188,58 +216,56 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Berat genggaman saat ini</span><strong className="text-4xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="grid grid-cols-2 gap-3"><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Target {fruitLabel(visual?.fruitVariant ?? fruit)}</span><strong className="text-3xl tabular-nums text-[#a94f12]">{(visual?.targetKilograms ?? 1.25).toFixed(2)} kg</strong></div><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Beban saat ini</span><strong className="text-3xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div></div>
       <div className="mt-5 grid items-stretch gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="grid min-h-[28rem] place-items-center rounded-lg bg-[#fffaf2] p-6 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
+        <div className="grid min-h-[28rem] place-items-center p-6 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
         <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="relative mt-4 h-4 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span className="absolute top-1/2 right-0 size-7 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Target tahan</span><strong className="text-2xl">{((visual?.holdProgressMs ?? 0) / 1000).toFixed(1)} / 5.0 dtk</strong></div><div aria-hidden className="mt-3 h-5 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#399267] transition-transform duration-100" style={{ transform: `scaleX(${hold / 100})` }} /></div></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
       </div>
     </div>
   );
 }
 
-function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
+function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: MutableRefObject<boolean>; snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const stimulus = visual?.stimulus as GoNoGoStimulus | null | undefined;
-  const asset = stimulus ? goNoGoStimulusAsset(stimulus, `${snapshot.displayName}:${visual?.trialNumber ?? 0}`) : null;
-  const target = stimulus === 'WAYANG';
-  const feedback = visual?.feedback === 'CORRECT' ? 'Bagus' : visual?.feedback === 'MISS' ? 'Tidak apa-apa, lanjutkan' : visual?.feedback === 'FALSE_POSITIVE' ? 'Tunggu Wayang berikutnya' : visual?.feedback === 'WAIT' ? 'Tunggu gambar berikutnya' : null;
+  const asset = stimulus && visual?.assetIndex !== null && visual?.assetIndex !== undefined
+    ? goNoGoStimulusAssetAt(stimulus, visual.assetIndex)
+    : null;
 
   useEffect(() => {
     void preloadGoNoGoImages();
   }, []);
 
+  useEffect(() => {
+    if (visual?.phase !== 'TURN_CUE' || initialCuePlayedRef.current) return;
+    initialCuePlayedRef.current = true;
+    playTurnCue();
+  }, [visual?.phase]);
+
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 120_000} totalMs={120_000} /><div className="flex flex-wrap items-center justify-end gap-3"><p className="m-0 rounded-full bg-[#eaf3ff] px-4 py-2 text-base font-black text-[#245f9f]">Genggam saat: Wayang</p><p className="m-0 font-black text-muted">Percobaan {visual?.trialNumber ?? 0} dari 40 · Benar {visual?.correctTrials ?? 0}</p></div></div>
-      <div className={`mt-7 grid min-h-[30rem] place-items-center rounded-lg border-4 border-ink p-6 text-center sm:p-8 ${target ? 'bg-[#e8f7ef]' : 'bg-[#f4f1e9]'}`}>
-        <p className="sr-only" aria-atomic="true" aria-live="assertive">{stimulus ? `${GO_NO_GO_STIMULUS_LABELS[stimulus]}. ${target ? 'Genggam sekarang' : 'Jangan genggam'}.` : 'Bersiap.'}</p>
-        <div className="w-full"><p className="m-0 text-sm font-black tracking-[0.12em] text-muted uppercase">Gambar sekarang</p>{asset ? <img alt={asset.alt} className="mx-auto mt-4 aspect-[4/5] w-full max-w-72 rounded-md object-contain shadow-[0_5px_0_#d9d4c5]" key={`${visual?.trialNumber}-${asset.src}`} src={asset.src} /> : <div className="mx-auto mt-4 grid aspect-[4/5] w-full max-w-72 place-items-center rounded-md bg-white"><p className="m-0 text-3xl font-black text-muted">Bersiap</p></div>}<h2 className="mt-4 mb-0 text-3xl font-black">{stimulus ? GO_NO_GO_STIMULUS_LABELS[stimulus] : 'Bersiap'}</h2><p className={`mt-5 mb-0 inline-flex rounded-md px-6 py-4 text-2xl font-black ${target ? 'bg-[#399267] text-white' : 'bg-white text-ink'}`}>{target ? 'Genggam sekarang' : 'Jangan genggam'}</p>{feedback && <p className="mt-5 mb-0 text-xl font-black text-muted">{feedback}</p>}</div>
+      <SessionCountdown remainingMs={visual?.remainingMs ?? 180_000} totalMs={180_000} />
+      <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
+        {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-72 rounded-md object-contain" key={`${visual?.trialNumber}-${stimulus}-${visual?.assetIndex}`} src={asset.src} />}
       </div>
     </div>
   );
 }
 
-function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; mode: GameMode; snapshot: SessionSnapshot }) {
+function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, initialCuePlayedRef, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; initialCuePlayedRef: MutableRefObject<boolean>; mode: GameMode; snapshot: SessionSnapshot }) {
   if (mode === 'MOTOR_GRIP') return <MotorGripBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={fruit} snapshot={snapshot} />;
-  if (mode === 'GO_NO_GO') return <GoNoGoBoard snapshot={snapshot} />;
+  if (mode === 'GO_NO_GO') return <GoNoGoBoard initialCuePlayedRef={initialCuePlayedRef} snapshot={snapshot} />;
   return <SequenceBoard snapshot={snapshot} />;
 }
 
-function MetricCard({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-md border-2 border-divider p-5"><dt className="text-base font-bold text-muted">{label}</dt><dd className="mt-2 ml-0 text-4xl font-black">{value}</dd></div>;
-}
-
-function GameResult({ snapshot, onReplay }: { snapshot: SessionSnapshot; onReplay: () => void }) {
-  const result = snapshot.result;
+function GameResult({ snapshot, onReplay, result = snapshot.result }: { snapshot: SessionSnapshot; onReplay: () => void; result?: SessionSnapshot['result'] }) {
   if (!result) return null;
   const metrics = result.metrics;
   return (
-    <section aria-labelledby="result-title">
-      <p className="landing-eyebrow">Sesi tersimpan</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="result-title">Hasil sesi {snapshot.displayName}</h1><p className="mt-4 mb-0 text-base font-bold text-muted">Hasil permainan ini bukan diagnosis atau rekomendasi terapi.</p>
-      {metrics.mode === 'MOTOR_GRIP' && <><dl className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><MetricCard label="Total skor" value={result.score} /><MetricCard label="Kekuatan puncak" value={metrics.gripSamples.length > 0 ? `${metrics.peakKilograms.toFixed(2)} kg` : '—'} /><MetricCard label="Kekuatan relatif" value={`${Math.round(metrics.peakGripPercent)}%`} /><MetricCard label="Durasi tahan" value={`${(metrics.continuousHoldMs / 1000).toFixed(1)} dtk`} /><MetricCard label="Target latihan" value={metrics.targetCompleted ? 'Tercapai' : 'Belum tercapai'} /><MetricCard label="Durasi permainan" value={`${Math.round(metrics.sessionElapsedMs / 1000)} dtk`} /></dl><section className="mt-7 rounded-md border-2 border-divider bg-white p-5 sm:p-6"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Kekuatan per detik</p><h2 className="mt-2 mb-0 text-2xl font-black">Grafik genggaman selama 30 detik</h2><p className="mt-2 mb-0 text-sm font-bold text-muted">Setiap titik menunjukkan berat genggaman yang tercatat pada detik tersebut.</p><div className="mt-5"><GripLineChart samples={metrics.gripSamples} /></div></section></>}
-      {metrics.mode === 'GO_NO_GO' && <dl className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><MetricCard label="Total skor" value={result.score} /><MetricCard label="Akurasi atensi" value={`${Math.round(metrics.accuracyPercent)}%`} /><MetricCard label="Waktu reaksi rata-rata" value={metrics.meanHitReactionMs === null ? '—' : `${Math.round(metrics.meanHitReactionMs)} ms`} /><MetricCard label="Respons benar" value={metrics.hits + metrics.correctRejections} /><MetricCard label="Terlewat" value={metrics.misses} /><MetricCard label="Kesalahan impulsif" value={metrics.falsePositives} /></dl>}
-      {metrics.mode === 'SEQUENCE_MEMORY' && <dl className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><MetricCard label="Rentang ingatan" value={`Level ${metrics.maxSequenceLength}`} /><MetricCard label="Total skor" value={result.score} /><MetricCard label="Rata-rata waktu reaksi" value={metrics.meanFirstResponseMs === null ? '—' : `${Math.round(metrics.meanFirstResponseMs)} ms`} /><MetricCard label="Level selesai" value={metrics.completedLevels} /><MetricCard label="Percobaan salah" value={metrics.wrongAttempts} /><MetricCard label="Permainan selesai karena" value={metrics.completionReason === 'LEVEL_CAP_REACHED' ? 'Semua level selesai' : 'Kesempatan habis'} /></dl>}
-      <div className="mt-7 flex flex-wrap gap-3"><Button onClick={onReplay}>Main lagi</Button><Link className={buttonClassName('secondary')} to={ROUTES.progressBoard}>Lihat Progress Board</Link><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
+    <section aria-labelledby="result-title" className="grid h-full min-h-0 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden">
+      <header><p className="landing-eyebrow">Sesi tersimpan</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="result-title">Hasil sesi {snapshot.displayName}</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil permainan ini bukan diagnosis atau rekomendasi terapi.</p></header>
+      <div className="min-h-0 overflow-y-auto pr-1"><ResultStats metrics={metrics} score={result.score} /><GameResultChart metrics={metrics} /><div className="mt-3"><AiSummaryPanels summary={result.aiSummary} /></div></div>
+      <div className="flex flex-wrap gap-2"><Button onClick={onReplay}>Main lagi</Button><Link className={buttonClassName('secondary')} to={ROUTES.progressBoard}>Lihat Progress Board</Link><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
     </section>
   );
 }
@@ -281,6 +307,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   const abortButtonRef = useRef<HTMLButtonElement>(null);
   const abortDialogRef = useRef<HTMLDialogElement>(null);
   const encouragementAudioRef = useRef<HTMLAudioElement | null>(null);
+  const initialGoNoGoCuePlayedRef = useRef(false);
   const encouragementStateRef = useRef<EncouragementState>({ started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null });
   const preparation = useCreatePreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
@@ -313,8 +340,8 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     sessionStartingRef.current = false;
     createSession.reset();
     preparation.reset();
-    preparation.mutate({ mode, displayName: participant.displayName, participantReference: participant.participantReference, privacyAcknowledged: true });
-  }, [createSession, csrfToken, mode, participant, preparation, setStage]);
+    preparation.mutate({ mode, displayName: participant.displayName, participantReference: participant.participantReference, privacyAcknowledged: true, ...(mode === 'MOTOR_GRIP' ? { fruitVariant: fruit } : {}) });
+  }, [createSession, csrfToken, fruit, mode, participant, preparation, setStage]);
 
   const startSession = useCallback(async () => {
     const current = preparation.data;
@@ -362,10 +389,10 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   }, [sessionSnapshot?.countdown, status]);
 
   useEffect(() => {
-    if (status === 'COUNTDOWN' && countdown > 0 && countdownToneRef.current !== countdown) { countdownToneRef.current = countdown; playCountdownTone(countdown); return; }
-    if (status === 'PLAYING' && countdownToneRef.current !== 0) { countdownToneRef.current = 0; playStartTone(); }
+    if (status === 'COUNTDOWN' && countdown > 0 && countdownToneRef.current !== countdown) { countdownToneRef.current = countdown; if (mode !== 'GO_NO_GO') playCountdownTone(countdown); return; }
+    if (status === 'PLAYING' && countdownToneRef.current !== 0) { countdownToneRef.current = 0; if (mode !== 'GO_NO_GO') playStartTone(); }
     if (status !== 'COUNTDOWN' && status !== 'PLAYING') countdownToneRef.current = null;
-  }, [countdown, status]);
+  }, [countdown, mode, status]);
 
   useEffect(() => { const dialog = abortDialogRef.current; if (!dialog) return; if (abortDialogOpen && !dialog.open) dialog.showModal(); if (!abortDialogOpen && dialog.open) dialog.close(); }, [abortDialogOpen]);
   useEffect(() => { if ((pauseCommand === 'PAUSE' && status === 'PAUSED') || (pauseCommand === 'RESUME' && status === 'PLAYING')) setPauseCommand(null); }, [pauseCommand, status]);
@@ -392,7 +419,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   function reset() {
     encouragementAudioRef.current?.pause();
     encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
-    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; setSessionId(null); setFruit(randomFruitVariant()); setStage('participant');
+    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; initialGoNoGoCuePlayedRef.current = false; setSessionId(null); setFruit(randomFruitVariant()); setStage('participant');
   }
 
   if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit(randomFruitVariant()); setStage('tutorial'); }} />;
@@ -407,12 +434,12 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     </section>
   );
 
-  if (sessionSnapshot?.status === 'SAVED') return <GameResult onReplay={reset} snapshot={sessionSnapshot} />;
+  if (sessionSnapshot?.status === 'SAVED') return <GameResult onReplay={reset} result={persistedSession.data?.result ?? sessionSnapshot.result} snapshot={sessionSnapshot} />;
   if (['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(status)) return <section className="mx-auto grid min-h-[32rem] max-w-2xl place-items-center text-center" aria-labelledby="terminal-title"><div><AlertTriangle aria-hidden className="mx-auto size-12 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">{status === 'ABORTED' ? 'Sesi diakhiri' : status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}</h1><p className="mt-4 mb-0 text-lg leading-8 text-muted">{sessionSnapshot?.message ?? 'Sesi berhenti. Pastikan perangkat tetap terhubung lalu coba lagi.'}</p><Button className="mt-7" onClick={reset}>Kembali ke awal</Button></div></section>;
   if (status === 'COMPLETED' || status === 'SAVING') return <section className="grid min-h-96 place-items-center text-center" aria-live="polite"><div><CheckCircle2 aria-hidden className="mx-auto size-12 text-success" /><h1 className="mt-5 mb-0 text-4xl font-black">Permainan selesai</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">Menyimpan hasil…</p></div></section>;
   if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>}</div></section>;
 
   return (
-    <section aria-labelledby="game-title"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-5"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="mt-7"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={fruit} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
+    <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={fruit} initialCuePlayedRef={initialGoNoGoCuePlayedRef} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
   );
 }

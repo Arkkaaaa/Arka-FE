@@ -397,7 +397,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   }, [definition.steps.length, onReady]);
 
   return (
-    <section className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[88rem] flex-col py-2" aria-labelledby="tutorial-title">
+    <section className="mx-auto flex h-full w-full max-w-[88rem] flex-col overflow-hidden" aria-labelledby="tutorial-title">
       <audio aria-label={`Panduan suara langkah ${step + 1}`} lang={definition.audioLanguage} preload="auto" ref={audioRef} />
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p></div>

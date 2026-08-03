@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DatePickerProps {
@@ -14,6 +15,15 @@ interface CalendarDay {
   currentMonth: boolean;
 }
 
+interface PopupPosition {
+  top: number;
+  left: number;
+  width: number;
+}
+
+const POPUP_GAP = 9;
+const VIEWPORT_MARGIN = 16;
+const POPUP_WIDTH = 336;
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as const;
 const WEEKDAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'] as const;
 
@@ -44,20 +54,59 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const [view, setView] = useState(() => selected ?? maximum ?? new Date());
+  const [popupPosition, setPopupPosition] = useState<PopupPosition>({ top: 0, left: 0, width: POPUP_WIDTH });
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
+  const valueId = useId();
   const dialogId = useId();
 
   useEffect(() => {
     if (selected) setView(selected);
   }, [value]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      const popup = popupRef.current;
+      if (!trigger || !popup) return;
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const popupHeight = popup.getBoundingClientRect().height;
+      const width = Math.min(POPUP_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
+      const left = Math.min(
+        Math.max(triggerRect.left, VIEWPORT_MARGIN),
+        window.innerWidth - width - VIEWPORT_MARGIN,
+      );
+      const spaceBelow = window.innerHeight - triggerRect.bottom - POPUP_GAP - VIEWPORT_MARGIN;
+      const requestedTop = spaceBelow < popupHeight
+        ? triggerRect.top - POPUP_GAP - popupHeight
+        : triggerRect.bottom + POPUP_GAP;
+      const top = Math.min(
+        Math.max(requestedTop, VIEWPORT_MARGIN),
+        window.innerHeight - popupHeight - VIEWPORT_MARGIN,
+      );
+
+      setPopupPosition({ top, left, width });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent | KeyboardEvent) => {
       if (event instanceof KeyboardEvent && event.key !== 'Escape') return;
-      if (event instanceof PointerEvent && event.target instanceof Node && rootRef.current?.contains(event.target)) return;
+      if (event instanceof PointerEvent && event.target instanceof Node && (rootRef.current?.contains(event.target) || popupRef.current?.contains(event.target))) return;
       setDraft(value);
       setOpen(false);
       if (event instanceof KeyboardEvent) requestAnimationFrame(() => triggerRef.current?.focus());
@@ -93,11 +142,11 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
   return (
     <div className="relative" ref={rootRef}>
       <span className="mb-2 block font-black" id={labelId}>{label}</span>
-      <button aria-controls={dialogId} aria-expanded={open} aria-haspopup="dialog" aria-labelledby={labelId} className="flex min-h-14 w-full items-center justify-between rounded-sm border-2 border-divider bg-white px-4 text-left font-bold text-ink shadow-[0_3px_0_#d9d4c5] transition hover:border-ink focus-visible:border-accent focus-visible:outline-4" name={name} onClick={toggle} ref={triggerRef} type="button">
-        <span className={selected ? '' : 'text-muted'}>{display}</span><CalendarDays aria-hidden className="size-5 text-muted" />
+      <button aria-controls={dialogId} aria-expanded={open} aria-haspopup="dialog" aria-labelledby={`${labelId} ${valueId}`} className="flex min-h-14 w-full items-center justify-between rounded-sm border-2 border-divider bg-white px-4 text-left font-bold text-ink shadow-[0_3px_0_#d9d4c5] transition hover:border-ink focus-visible:border-accent focus-visible:outline-4" name={name} onClick={toggle} ref={triggerRef} type="button">
+        <span className={selected ? '' : 'text-muted'} id={valueId}>{display}</span><CalendarDays aria-hidden className="size-5 text-muted" />
       </button>
-      {open && (
-        <div aria-labelledby={labelId} className="absolute top-[calc(100%+0.55rem)] left-0 z-[110] w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-sm border border-divider bg-white shadow-[0_8px_24px_rgba(23,23,17,0.2)]" id={dialogId} role="dialog">
+      {open && createPortal(
+        <div aria-labelledby={labelId} className="fixed z-[110] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-sm border border-divider bg-white shadow-[0_8px_24px_rgba(23,23,17,0.2)]" id={dialogId} ref={popupRef} role="dialog" style={popupPosition}>
           <div className="flex items-center justify-between gap-2 border-b border-divider px-3 py-2">
             <button aria-label="Bulan sebelumnya" className="grid size-9 place-items-center rounded-sm border-0 bg-transparent text-muted hover:bg-canvas hover:text-ink" onClick={() => setView((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} type="button"><ChevronLeft aria-hidden className="size-5" /></button>
             <div className="flex min-w-0 items-center justify-center gap-1">
@@ -113,13 +162,14 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
             const candidate = dateValue(date);
             const active = candidate === draft;
             const disabled = Boolean(maximum && date > maximum);
-            return <button aria-label={new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(date)} aria-pressed={active} className={`mx-auto grid size-9 place-items-center rounded-sm border-0 text-sm font-bold transition ${active ? 'bg-accent text-white shadow-[0_2px_0_#a55f00]' : currentMonth ? 'bg-transparent text-ink hover:bg-brand-soft' : 'bg-transparent text-muted/45 hover:bg-canvas'} disabled:cursor-not-allowed disabled:opacity-20`} disabled={disabled} key={candidate} onClick={() => { setDraft(candidate); if (!currentMonth) setView(new Date(date.getFullYear(), date.getMonth(), 1)); }} type="button">{date.getDate()}</button>;
+            return <button aria-label={new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(date)} aria-pressed={active} className={`mx-auto grid size-9 place-items-center rounded-sm border-0 text-sm font-bold transition ${active ? 'bg-action text-ink shadow-[0_2px_0_#c89d20]' : currentMonth ? 'bg-transparent text-ink hover:bg-brand-soft' : 'bg-transparent text-muted/45 hover:bg-canvas'} disabled:cursor-not-allowed disabled:opacity-20`} disabled={disabled} key={candidate} onClick={() => { setDraft(candidate); if (!currentMonth) setView(new Date(date.getFullYear(), date.getMonth(), 1)); }} type="button">{date.getDate()}</button>;
           })}</div>
           <div className="flex items-center justify-end gap-2 border-t border-divider bg-canvas/45 px-3 py-2.5">
             <button className="min-h-10 rounded-sm border border-divider bg-white px-3 font-bold text-muted hover:border-ink hover:text-ink" onClick={() => setDraft('')} type="button">Hapus</button>
-            <button className="min-h-10 rounded-sm border-0 bg-accent px-4 font-black text-white shadow-[0_3px_0_#a55f00] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50" disabled={draft === value} onClick={apply} type="button">Terapkan</button>
+            <button className="min-h-10 rounded-sm border-0 bg-action px-4 font-black text-ink shadow-[0_4px_0_#c89d20] hover:bg-action-hover active:shadow-none disabled:cursor-not-allowed disabled:opacity-50" disabled={draft === value} onClick={apply} type="button">Terapkan</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -16,7 +16,7 @@ export function useGameSessionQuery(
       const status = query.state.data?.status ?? '';
       if (options.pollWhileActive && ['BINDING', 'COUNTDOWN', 'PLAYING', 'PAUSED'].includes(status))
         return 1_000;
-      if (options.pollWhileSaving && ['COMPLETED', 'SAVING'].includes(status)) return 3_000;
+      if (options.pollWhileSaving && (['COMPLETED', 'SAVING'].includes(status) || (status === 'SAVED' && query.state.data?.result?.aiSummary.status === 'PENDING'))) return 3_000;
       return false;
     },
   });

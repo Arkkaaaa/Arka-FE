@@ -15,26 +15,36 @@ export const GO_NO_GO_STIMULUS_LABELS: Record<GoNoGoStimulus, string> = {
   ANGKLUNG: 'Angklung',
 };
 
-const STIMULUS_ASSETS: Record<GoNoGoStimulus, readonly [StimulusAsset, StimulusAsset]> = {
+const STIMULUS_ASSETS: Record<GoNoGoStimulus, readonly StimulusAsset[]> = {
   WAYANG: [
     { src: '/images/game-mode2/wayang-1.png', alt: 'Wayang kulit berwarna emas' },
     { src: '/images/game-mode2/wayang-2.png', alt: 'Wayang kulit berwarna hitam dan emas' },
+    { src: '/images/game-mode2/wayang-3.png', alt: 'Wayang kulit varian ketiga' },
+    { src: '/images/game-mode2/wayang-4.png', alt: 'Wayang kulit varian keempat' },
   ],
   BATIK: [
     { src: '/images/game-mode2/batik-1.png', alt: 'Kain batik cokelat bermotif parang' },
     { src: '/images/game-mode2/batik-2.png', alt: 'Kain batik biru bermotif bunga' },
+    { src: '/images/game-mode2/batik-3.png', alt: 'Kain batik bermotif kawung' },
+    { src: '/images/game-mode2/batik-4.png', alt: 'Kain batik bermotif mega mendung' },
   ],
   CANDI: [
     { src: '/images/game-mode2/candi-borobudur.png', alt: 'Candi Borobudur' },
     { src: '/images/game-mode2/candi-prambanan.png', alt: 'Candi Prambanan' },
+    { src: '/images/game-mode2/candi-sewu.png', alt: 'Candi Sewu' },
+    { src: '/images/game-mode2/candi-mendut.png', alt: 'Candi Mendut' },
   ],
   MONAS: [
     { src: '/images/game-mode2/monas-1.png', alt: 'Monumen Nasional tampak depan' },
     { src: '/images/game-mode2/monas-2.png', alt: 'Monumen Nasional tampak dekat' },
+    { src: '/images/game-mode2/monas-3.png', alt: 'Monumen Nasional tampak lurus' },
+    { src: '/images/game-mode2/monas-4.png', alt: 'Monumen Nasional dari sudut rendah' },
   ],
   ANGKLUNG: [
     { src: '/images/game-mode2/angklung-1.png', alt: 'Angklung bambu tampak depan' },
     { src: '/images/game-mode2/angklung-2.png', alt: 'Angklung bambu tampak samping' },
+    { src: '/images/game-mode2/angklung-3.png', alt: 'Angklung enam tabung tampak depan' },
+    { src: '/images/game-mode2/angklung-4.png', alt: 'Angklung delapan tabung tampak samping' },
   ],
 };
 
@@ -50,6 +60,12 @@ function stableHash(value: string): number {
 export function goNoGoStimulusAsset(stimulus: GoNoGoStimulus, seed: string): StimulusAsset {
   const variants = STIMULUS_ASSETS[stimulus];
   return variants[stableHash(`${seed}:${stimulus}`) % variants.length]!;
+}
+
+export function goNoGoStimulusAssetAt(stimulus: GoNoGoStimulus, assetIndex: number): StimulusAsset {
+  const asset = STIMULUS_ASSETS[stimulus][assetIndex];
+  if (!asset) throw new RangeError(`Asset stimulus tidak tersedia: ${stimulus}/${assetIndex}`);
+  return asset;
 }
 
 export const GO_NO_GO_IMAGE_URLS = Object.values(STIMULUS_ASSETS).flatMap((variants) =>
