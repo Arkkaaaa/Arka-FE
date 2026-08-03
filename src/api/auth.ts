@@ -59,6 +59,13 @@ export async function signUp(input: EmailRegistrationRequest): Promise<void> {
         'Terlalu banyak percobaan pendaftaran. Tunggu sebentar lalu coba lagi.',
       );
     }
+    if (error instanceof ApiError && error.code === 'FAILED_TO_CREATE_USER') {
+      throw new ApiError(
+        error.status,
+        error.code,
+        'Akun belum dapat dibuat. Coba lagi atau gunakan email lain.',
+      );
+    }
     if (error instanceof ApiError && error.status >= 500) {
       throw new ApiError(
         error.status,
