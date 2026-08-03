@@ -124,7 +124,7 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
         title: 'Mulai bermain',
         instruction: 'Ingat caranya: perhatikan contoh, lalu tirukan pada alat.',
         visual: 'Empat tombol kembali dalam keadaan siap.',
-        caption: 'Caregiver dapat melanjutkan saat peserta sudah siap.',
+        caption: 'Pengasuh dapat melanjutkan saat peserta sudah siap.',
       },
     ],
   },

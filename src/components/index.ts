@@ -9,6 +9,7 @@ export {
   Field,
   GoogleAuthButton,
   GoogleIcon,
+  DatePicker,
   Pagination,
   PasswordVisibilityButton,
   buttonClassName,
