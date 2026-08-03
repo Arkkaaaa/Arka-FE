@@ -21,6 +21,7 @@ export class ApiError extends Error {
 }
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/u, '') ?? '';
+const REQUEST_TIMEOUT_MS = 20_000;
 
 const BetterAuthErrorSchema = z.object({
   code: z.string().min(1).max(80),
@@ -54,6 +55,20 @@ async function responseJson(response: Response): Promise<unknown> {
   return response.json() as Promise<unknown>;
 }
 
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new ApiError(0, 'REQUEST_TIMEOUT', 'Server terlalu lama merespons. Coba lagi.');
+    }
+    throw error;
+  }
+}
+
 function jsonHeaders(csrfToken: string, custom?: HeadersInit): Headers {
   const headers = new Headers(custom);
   if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
@@ -65,7 +80,7 @@ async function request<T>(path: string, schema: ZodType<T>, init: RequestInit = 
   const headers = new Headers(init.headers);
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
-  const response = await fetch(apiUrl(path), {
+  const response = await fetchWithTimeout(apiUrl(path), {
     ...init,
     credentials: 'include',
     headers,
@@ -139,7 +154,7 @@ export async function apiPostWithoutResponse(
   body: unknown,
   headers: HeadersInit = {},
 ): Promise<void> {
-  const response = await fetch(apiUrl(path), {
+  const response = await fetchWithTimeout(apiUrl(path), {
     method: 'POST',
     credentials: 'include',
     headers: {

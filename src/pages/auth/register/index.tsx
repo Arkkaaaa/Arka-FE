@@ -50,6 +50,7 @@ export function RegisterPage() {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
+  const signUpInFlightRef = useRef(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,7 +78,7 @@ export function RegisterPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || signUpInFlightRef.current) return;
 
     const parsed = RegisterFormSchema.safeParse({ name, email, password });
     if (!parsed.success) {
@@ -100,14 +101,18 @@ export function RegisterPage() {
 
     setFieldErrors({});
     setFormError('');
+    signUpInFlightRef.current = true;
     try {
       await signUp.mutateAsync(parsed.data);
       setEmail(parsed.data.email);
       setPassword('');
       setVerificationPending(true);
+      await resendOtp.mutateAsync(parsed.data.email);
       requestAnimationFrame(() => otpRef.current?.focus());
     } catch (error) {
       setFormError(messageOf(error));
+    } finally {
+      signUpInFlightRef.current = false;
     }
   }
 
