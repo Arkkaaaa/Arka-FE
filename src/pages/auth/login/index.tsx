@@ -49,7 +49,7 @@ export function LoginPage() {
   const [formError, setFormError] = useState(() =>
     searchParams.has('oauthError') ? 'Login dengan Google dibatalkan atau belum dapat diselesaikan.' : '',
   );
-  const registrationCompleted = searchParams.has('registered');
+  const emailVerified = searchParams.has('verified');
 
   const busy = signIn.isPending || googleSignIn.isPending;
   const googleEnabled = capabilities.data?.socialProviders.google === true;
@@ -159,9 +159,9 @@ export function LoginPage() {
           value={password}
         />
 
-        {registrationCompleted && !formError && (
+        {emailVerified && !formError && (
           <p aria-live="polite" className="m-0 text-base font-bold leading-6 text-success" role="status">
-            Pendaftaran berhasil. Silakan masuk dengan email dan kata sandi Anda.
+            Email berhasil diverifikasi. Silakan masuk dengan email dan kata sandi Anda.
           </p>
         )}
         {formError && (

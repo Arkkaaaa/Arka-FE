@@ -3,6 +3,7 @@ import {
   AuthCapabilitiesDtoSchema,
   ChangePasswordRequestSchema,
   EmailRegistrationRequestSchema,
+  EmailVerificationRequestSchema,
   InstitutionOnboardingRequestSchema,
   InstitutionOnboardingStatusSchema,
   MeDtoSchema,
@@ -11,6 +12,7 @@ import {
   type AuthCapabilitiesDto,
   type ChangePasswordRequest,
   type EmailRegistrationRequest,
+  type EmailVerificationRequest,
   type InstitutionOnboardingRequest,
   type InstitutionOnboardingStatus,
   type MeDto,
@@ -82,6 +84,31 @@ export async function signUp(input: EmailRegistrationRequest): Promise<void> {
     }
     throw error;
   }
+}
+
+export async function verifyRegistrationEmail(input: EmailVerificationRequest): Promise<void> {
+  const body = requestBody(EmailVerificationRequestSchema, input);
+  try {
+    await apiPostWithoutResponse(API_ENDPOINTS.auth.verifyEmailOtp, body);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'INVALID_OTP') {
+      throw new ApiError(error.status, error.code, 'Kode verifikasi tidak sesuai.');
+    }
+    if (error instanceof ApiError && error.code === 'OTP_EXPIRED') {
+      throw new ApiError(error.status, error.code, 'Kode verifikasi sudah kedaluwarsa. Kirim kode baru.');
+    }
+    if (error instanceof ApiError && error.code === 'TOO_MANY_ATTEMPTS') {
+      throw new ApiError(error.status, error.code, 'Terlalu banyak percobaan. Kirim kode baru.');
+    }
+    throw error;
+  }
+}
+
+export async function resendRegistrationOtp(email: string): Promise<void> {
+  await apiPostWithoutResponse(API_ENDPOINTS.auth.sendVerificationOtp, {
+    email: z.string().trim().email().max(254).parse(email),
+    type: 'email-verification',
+  });
 }
 
 export async function beginGoogleSignIn(intent: 'login' | 'register'): Promise<string> {

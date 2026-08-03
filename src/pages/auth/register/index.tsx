@@ -13,7 +13,9 @@ import { messageOf } from '../../../config/api-client.ts';
 import { ROUTES } from '../../../constants/routes.ts';
 import { useAuthCapabilitiesQuery } from '../../../hooks/auth/use-auth-capabilities-query.ts';
 import { useGoogleSignInMutation } from '../../../hooks/auth/use-google-sign-in-mutation.ts';
+import { useResendRegistrationOtpMutation } from '../../../hooks/auth/use-resend-registration-otp-mutation.ts';
 import { useSignUpMutation } from '../../../hooks/auth/use-sign-up-mutation.ts';
+import { useVerifyRegistrationEmailMutation } from '../../../hooks/auth/use-verify-registration-email-mutation.ts';
 
 const RegisterFormSchema = z.object({
   name: z
@@ -33,7 +35,7 @@ const RegisterFormSchema = z.object({
     .max(128, 'Kata sandi terlalu panjang.'),
 });
 
-type FieldName = 'name' | 'email' | 'password';
+type FieldName = 'name' | 'email' | 'password' | 'otp';
 type FieldErrors = Partial<Record<FieldName, string>>;
 
 export function RegisterPage() {
@@ -41,13 +43,18 @@ export function RegisterPage() {
   const [searchParams] = useSearchParams();
   const capabilities = useAuthCapabilitiesQuery();
   const signUp = useSignUpMutation();
+  const verifyEmail = useVerifyRegistrationEmailMutation();
+  const resendOtp = useResendRegistrationOtpMutation();
   const googleSignIn = useGoogleSignInMutation();
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const otpRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [verificationPending, setVerificationPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState(() =>
@@ -56,7 +63,7 @@ export function RegisterPage() {
       : '',
   );
 
-  const busy = signUp.isPending || googleSignIn.isPending;
+  const busy = signUp.isPending || verifyEmail.isPending || resendOtp.isPending || googleSignIn.isPending;
   const googleEnabled = capabilities.data?.socialProviders.google === true;
 
   function clearFieldError(field: FieldName) {
@@ -95,7 +102,41 @@ export function RegisterPage() {
     setFormError('');
     try {
       await signUp.mutateAsync(parsed.data);
-      navigate(`${ROUTES.login}?registered=1`, { replace: true });
+      setEmail(parsed.data.email);
+      setPassword('');
+      setVerificationPending(true);
+      requestAnimationFrame(() => otpRef.current?.focus());
+    } catch (error) {
+      setFormError(messageOf(error));
+    }
+  }
+
+  async function handleVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    if (!/^\d{6}$/u.test(otp)) {
+      setFieldErrors({ otp: 'Masukkan enam digit kode verifikasi.' });
+      setFormError('Periksa kembali kode verifikasi.');
+      otpRef.current?.focus();
+      return;
+    }
+    setFieldErrors({});
+    setFormError('');
+    try {
+      await verifyEmail.mutateAsync({ email, otp });
+      navigate(`${ROUTES.login}?verified=1`, { replace: true });
+    } catch (error) {
+      setFormError(messageOf(error));
+    }
+  }
+
+  async function handleResendOtp() {
+    if (busy) return;
+    setFormError('');
+    try {
+      await resendOtp.mutateAsync(email);
+      setOtp('');
+      requestAnimationFrame(() => otpRef.current?.focus());
     } catch (error) {
       setFormError(messageOf(error));
     }
@@ -130,6 +171,41 @@ export function RegisterPage() {
       visualText="Siapkan akun pendamping dan mulai latihan dengan alur yang jelas."
       visualTitle="Mulai pendampingan dalam satu akun."
     >
+      {verificationPending ? (
+        <form className="grid gap-4" noValidate onSubmit={handleVerification}>
+          <p className="m-0 text-base leading-7 text-muted">
+            Kode enam digit telah dikirim ke <strong className="text-ink">{email}</strong>. Kode berlaku selama lima menit.
+          </p>
+          <Field
+            autoComplete="one-time-code"
+            error={fieldErrors.otp}
+            inputMode="numeric"
+            inputRef={otpRef}
+            label="Kode verifikasi"
+            maxLength={6}
+            name="otp"
+            onChange={(event) => {
+              setOtp(event.target.value.replace(/\D/gu, '').slice(0, 6));
+              clearFieldError('otp');
+            }}
+            pattern="[0-9]{6}"
+            placeholder="000000"
+            required
+            value={otp}
+          />
+          {formError && (
+            <p aria-live="polite" className="m-0 text-base font-bold leading-6 text-danger" role="alert">
+              {formError}
+            </p>
+          )}
+          <Button className="w-full" disabled={busy} type="submit">
+            {verifyEmail.isPending ? 'Memverifikasi…' : 'Verifikasi email'}
+          </Button>
+          <Button disabled={busy} onClick={() => void handleResendOtp()} type="button" variant="quiet">
+            {resendOtp.isPending ? 'Mengirim…' : 'Kirim ulang kode'}
+          </Button>
+        </form>
+      ) : (
       <form className="grid gap-3" noValidate onSubmit={handleSubmit}>
         <Field
           autoComplete="organization"
@@ -221,6 +297,7 @@ export function RegisterPage() {
           )
         )}
       </form>
+      )}
     </AuthShell>
   );
 }

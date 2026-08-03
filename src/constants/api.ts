@@ -4,6 +4,8 @@ export const API_ENDPOINTS = {
     capabilities: '/api/v1/auth/capabilities',
     signIn: '/api/auth/sign-in/email',
     signUp: '/api/auth/sign-up/email',
+    sendVerificationOtp: '/api/auth/email-otp/send-verification-otp',
+    verifyEmailOtp: '/api/auth/email-otp/verify-email',
     socialSignIn: '/api/auth/sign-in/social',
     signOut: '/api/auth/sign-out',
     changePassword: '/api/auth/change-password',

@@ -23,6 +23,11 @@ export const EmailRegistrationRequestSchema = z.object({
   password: z.string().min(8).max(128),
 });
 export type EmailRegistrationRequest = z.infer<typeof EmailRegistrationRequestSchema>;
+export const EmailVerificationRequestSchema = z.object({
+  email: z.string().trim().email().max(254),
+  otp: z.string().regex(/^\d{6}$/u),
+});
+export type EmailVerificationRequest = z.infer<typeof EmailVerificationRequestSchema>;
 export const SocialSignInResponseSchema = z.object({
   redirect: z.boolean(),
   url: z.string().url().optional(),
