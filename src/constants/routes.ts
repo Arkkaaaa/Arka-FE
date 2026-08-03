@@ -24,7 +24,6 @@ export const ROUTES = {
   mission: '/mission',
   faq: '/faq',
   contact: '/contact',
-  gamePreview: '/preview/motor-grip/game',
   history: '/history',
   devices: '/devices',
   participant: (participantId: string) => `/participants/${encodeURIComponent(participantId)}`,
@@ -38,7 +37,6 @@ export const ROUTES = {
 } as const;
 
 export const ROUTE_PATTERNS = {
-  gamePreview: '/preview/:mode/:view',
   participantEntry: '/play/:mode/participant',
   tutorial: '/play/:mode/tutorial',
   setup: '/play/:mode/setup',

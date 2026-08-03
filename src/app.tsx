@@ -10,7 +10,6 @@ import { ContactPage } from './pages/contact/index.tsx';
 import { DashboardPage } from './pages/dashboard/index.tsx';
 import { FaqPage } from './pages/faq/index.tsx';
 import { GameModePage } from './pages/game-mode/index.tsx';
-import { GamePreviewPage } from './pages/game-preview.tsx';
 import { LandingPage } from './pages/landing/index.tsx';
 import { LeaderboardPage } from './pages/leaderboard/index.tsx';
 import { MissionPage } from './pages/mission/index.tsx';
@@ -79,7 +78,6 @@ export function App() {
             <Route element={<SessionDetailPage />} path={ROUTE_PATTERNS.session} />
             <Route element={<ProfilePage />} path={ROUTES.profile} />
             <Route element={<GameModePage />} path={ROUTE_PATTERNS.participantEntry} />
-            <Route element={<GamePreviewPage />} path={ROUTE_PATTERNS.gamePreview} />
             <Route element={<MissionPage />} path={ROUTES.mission} />
             <Route element={<FaqPage />} path={ROUTES.faq} />
             <Route element={<ContactPage />} path={ROUTES.contact} />
