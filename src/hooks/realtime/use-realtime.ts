@@ -50,7 +50,13 @@ export function useSetupSocket(setupId: string | null) {
     };
   }, [setupId]);
 
-  return { status, message, protocolError, reconnect: () => socketRef.current?.reconnect() };
+  const close = useCallback(() => {
+    const connection = socketRef.current;
+    socketRef.current = null;
+    connection?.close();
+  }, []);
+
+  return { status, message, protocolError, reconnect: () => socketRef.current?.reconnect(), close };
 }
 
 export function useSessionSocket(sessionId: string | null) {

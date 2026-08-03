@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, Gamepad2, Hand, Pause, Play, Volume2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Gamepad2, Hand, Pause, Play, Volume2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AppServerMessage, GameMode } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
@@ -18,6 +18,7 @@ import {
   playSequenceTone,
   playStartTone,
   resumeGameAudio,
+  SequenceConsole,
   SEQUENCE_TILES,
   type GameParticipantIdentity,
 } from './sequence-tutorial.tsx';
@@ -88,12 +89,7 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
     <div className="mx-auto w-full max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="m-0 text-2xl font-black">{instruction}</p><span className="rounded-full bg-brand-soft px-4 py-2 text-sm font-black">Sisa kesempatan {visual?.remainingAttempts ?? 3}</span></div>
       {visual?.phase === 'RESPONSE' && <p className="mt-2 mb-0 font-bold text-muted">Sisa {responseRemaining} tombol</p>}
-      <div className="mt-7 grid grid-cols-2 gap-5 rounded-lg border-4 border-ink bg-[#171717] p-6 sm:gap-7 sm:p-8">
-        {SEQUENCE_TILES.map((tile) => {
-          const active = tile.code === visual?.activeItem;
-          return <div className="grid place-items-center text-center" key={tile.code}><span className="relative block aspect-square w-full max-w-32">{active && <span className="absolute inset-2 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}<span className={`relative block size-full rounded-full border-8 border-[#080808] transition ${active ? 'scale-105 brightness-125' : 'brightness-75'}`} style={{ backgroundColor: tile.color, filter: active ? `drop-shadow(0 0 28px ${tile.color})` : 'none' }} /></span><strong className="mt-3 block text-lg text-white">{tile.label}</strong><span className="mt-1 block text-sm font-bold text-white/70">{tile.icon}</span></div>;
-        })}
-      </div>
+      <div className="mt-3"><SequenceConsole activeCode={visual?.activeItem ?? null} phase={visual?.phase === 'RESPONSE' ? 'RESPOND' : 'WATCH'} /></div>
     </div>
   );
 }
@@ -194,8 +190,8 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Berat genggaman saat ini</span><strong className="text-4xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div>
       <div className="mt-5 grid items-stretch gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="grid min-h-[28rem] place-items-center rounded-lg bg-[#fffaf2] p-6 text-center"><div><SqueezableFruit fruit={fruit} squeezePercent={grip} /><p className="mt-2 mb-0 text-3xl font-black">{grip >= 30 ? 'Pertahankan genggaman' : 'Ayo genggam alatnya'}</p><p className="mt-2 mb-0 text-lg font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
-        <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="mt-3 h-5 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#d67b1f] transition-transform duration-100" style={{ transform: `scaleX(${grip / 100})` }} /></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Target tahan</span><strong className="text-2xl">{((visual?.holdProgressMs ?? 0) / 1000).toFixed(1)} / 5.0 dtk</strong></div><div aria-hidden className="mt-3 h-5 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#399267] transition-transform duration-100" style={{ transform: `scaleX(${hold / 100})` }} /></div></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
+        <div className="grid min-h-[28rem] place-items-center rounded-lg bg-[#fffaf2] p-6 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
+        <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="relative mt-4 h-4 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span className="absolute top-1/2 right-0 size-7 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Target tahan</span><strong className="text-2xl">{((visual?.holdProgressMs ?? 0) / 1000).toFixed(1)} / 5.0 dtk</strong></div><div aria-hidden className="mt-3 h-5 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#399267] transition-transform duration-100" style={{ transform: `scaleX(${hold / 100})` }} /></div></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
       </div>
     </div>
   );
@@ -342,6 +338,16 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
 
   useEffect(() => { if (stage === 'setup' && canStart && !createSession.isError) void startSession(); }, [canStart, createSession.isError, stage, startSession]);
 
+  function backToTutorial() {
+    if (createSession.isPending || sessionStartingRef.current) return;
+    setupSocket.close();
+    preparation.reset();
+    createSession.reset();
+    sessionAttemptRef.current = null;
+    sessionStartingRef.current = false;
+    setStage('tutorial');
+  }
+
   function retrySetup() {
     if (createSession.isError && preparation.data && !setupTerminal) { createSession.reset(); void startSession(); return; }
     if (preparation.data && setupFailed && !setupTerminal) { setupSocket.reconnect(); return; }
@@ -393,7 +399,8 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   if (stage === 'tutorial') return <GameTutorial fruit={fruit} mode={mode} onBack={() => setStage('participant')} onReady={() => { resumeGameAudio(); startPreparation(); }} participantName={participantName} />;
 
   if (stage === 'setup') return (
-    <section className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[78rem] flex-col justify-center py-8" aria-labelledby="setup-title">
+    <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[78rem] flex-col justify-center py-20 sm:py-16" aria-labelledby="setup-title">
+      <Button className="absolute top-3 left-0" disabled={createSession.isPending || sessionStartingRef.current} onClick={backToTutorial} variant="quiet"><ArrowLeft aria-hidden className="size-5" />Kembali</Button>
       <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16"><div><p className="landing-eyebrow">Persiapan untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan {selected.device.toLowerCase()}</h1><p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">{mode === 'MOTOR_GRIP' ? 'Kalibrasi kekuatan dilakukan agar latihan tetap nyaman.' : mode === 'GO_NO_GO' ? 'Atur sensitivitas genggaman, lalu selesaikan latihan singkat.' : 'Empat tombol diperiksa sebelum permainan dimulai.'}</p><div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p><div className="mt-4 flex items-center gap-4"><span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span><div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? selected.device}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">{selected.title}</p></div></div></div></div>
         {preparation.isPending ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="status"><span className="grid size-16 place-items-center rounded-full bg-brand-soft"><Gamepad2 aria-hidden className="size-8 animate-pulse" /></span><p className="m-0 text-xl font-black">Menyiapkan perangkat…</p></div> : preparation.isError || setupTerminal || setupFailed || createSession.isError ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="alert"><span className="grid size-16 place-items-center rounded-full bg-danger-soft"><AlertTriangle aria-hidden className="size-8 text-danger" /></span><p className="m-0 max-w-md text-lg font-bold">{preparation.isError ? messageOf(preparation.error) : createSession.isError ? messageOf(createSession.error) : setupTerminal ? 'Persiapan perangkat berakhir. Coba lagi.' : 'Perangkat belum terhubung. Coba lagi.'}</p><Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">Coba lagi</Button></div> : <div className="overflow-hidden rounded-lg border-2 border-ink bg-white/95 shadow-[0_7px_0_#d9d4c5]"><div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-5 py-4 sm:px-6"><div><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Pemeriksaan alat</p><p className="mt-1 mb-0 font-bold text-muted">{setupSnapshot?.instruction ?? 'Menghubungkan perangkat.'}</p></div><span className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black ${canStart ? 'bg-brand-soft text-success' : 'bg-divider text-muted'}`}>{canStart ? <CheckCircle2 aria-hidden className="size-5" /> : <span aria-hidden className="size-2 animate-pulse rounded-full bg-accent" />}{canStart ? 'Siap' : 'Memvalidasi'}</span></div><SetupPanel canStart={canStart} fruit={fruit} mode={mode} snapshot={setupSnapshot} /><p className="m-0 border-t-2 border-divider bg-white px-5 py-4 text-center font-black text-muted sm:px-6">{canStart ? 'Perangkat siap. Permainan segera dimulai.' : setupSnapshot?.instruction ?? 'Ikuti petunjuk untuk menyelesaikan pemeriksaan.'}</p></div>}
       </div>

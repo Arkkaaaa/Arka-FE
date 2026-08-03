@@ -106,6 +106,39 @@ function sequenceTutorialTile(step: number, progress: number): string | null {
   return null;
 }
 
+export function SequenceConsole({ activeCode, phase }: { activeCode: string | null; phase: 'INTRO' | 'WATCH' | 'RESPOND' | 'READY' }) {
+  const status = phase === 'INTRO' ? 'Kenali tombol' : phase === 'RESPOND' ? 'Giliran Anda' : phase === 'READY' ? 'Siap bermain' : 'Perhatikan urutan';
+  return (
+    <div className="relative w-full max-w-2xl px-5 pt-8 pb-12" role="img" aria-label={`Konsol Ding Dong Dong. ${status}`}>
+      <span aria-hidden className="absolute top-0 left-1/2 h-12 w-20 -translate-x-1/2 rounded-t-[2rem] border-4 border-[#353535] bg-[#151515] shadow-[inset_0_5px_0_#454545]" />
+      <div className="relative rounded-[2.2rem] border-[7px] border-[#090909] bg-gradient-to-br from-[#383834] via-[#161614] to-[#080808] p-5 shadow-[0_13px_0_#050505,0_20px_30px_rgba(23,23,17,0.28),inset_0_2px_0_#696960] sm:p-7">
+        {['top-4 left-4', 'top-4 right-4', 'bottom-4 left-4', 'right-4 bottom-4'].map((position) => <span aria-hidden className={`absolute size-4 rounded-full border-2 border-[#77766d] bg-[#20201e] shadow-[inset_1px_1px_0_#aaa89b] ${position}`} key={position}><span className="absolute top-1/2 left-0.5 right-0.5 h-px -translate-y-1/2 rotate-45 bg-[#8f8d82]" /></span>)}
+        <div className="mx-auto grid max-w-lg grid-cols-2 gap-5 sm:gap-7">
+          {SEQUENCE_TILES.map((tile) => {
+            const active = tile.code === activeCode;
+            const pressed = active && phase === 'RESPOND';
+            return (
+              <div className={`relative grid min-h-44 place-items-center rounded-2xl border-2 p-4 transition-colors ${active ? 'border-white/35 bg-white/9' : 'border-white/8 bg-white/3'}`} key={tile.code}>
+                <span aria-hidden className={`absolute inset-2 rounded-xl border ${active ? 'border-white/20' : 'border-white/5'}`} />
+                <m.span animate={{ scale: pressed ? 0.92 : active ? 1.05 : 1, y: pressed ? 6 : 0 }} className="relative block size-24 rounded-full border-[9px] border-[#050505] sm:size-28" style={{ background: `radial-gradient(circle at 34% 27%, white 0 4%, ${tile.color} 8% 55%, color-mix(in srgb, ${tile.color}, black 35%) 100%)`, boxShadow: active ? `0 0 0 6px ${tile.color}55,0 0 30px ${tile.color},inset 0 -12px 18px rgba(0,0,0,.28)` : '0 7px 0 #020202,inset 0 -12px 18px rgba(0,0,0,.3)' }} transition={{ duration: 0.13 }}>
+                  {active && <><span aria-hidden className="absolute -inset-4 animate-ping rounded-full border-4 opacity-35" style={{ borderColor: tile.color }} /><span aria-hidden className="absolute inset-x-5 top-3 h-5 rotate-[-12deg] rounded-full bg-white/28 blur-[1px]" /></>}
+                </m.span>
+                <span className="relative mt-2 text-center"><strong className="block text-lg font-black text-white">{tile.label}</strong></span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-6 flex items-end justify-between gap-5 px-3">
+          <div><p className="m-0 text-[0.62rem] font-black tracking-[0.14em] text-white/35 uppercase">Speaker</p><div className="mt-2 grid grid-cols-6 gap-1.5">{Array.from({ length: 18 }).map((_, index) => <span aria-hidden className="size-1.5 rounded-full bg-black shadow-[inset_0_1px_0_#555]" key={index} />)}</div></div>
+          <div className="flex items-center gap-2"><span className="text-[0.62rem] font-black tracking-[0.14em] text-white/35 uppercase">Power</span><span aria-hidden className="h-5 w-9 rounded-full border-2 border-[#050505] bg-[#222] p-0.5"><span className="block ml-auto size-3 rounded-full bg-[#55d58b] shadow-[0_0_7px_#55d58b]" /></span></div>
+        </div>
+      </div>
+      <span aria-hidden className="absolute bottom-2 left-1/2 h-12 w-5 -translate-x-1/2 rounded-b-xl bg-[#111] shadow-[inset_5px_0_0_#333]" />
+      <span aria-hidden className="absolute right-[42%] bottom-0 h-5 w-16 rounded-full border-4 border-[#111] border-t-transparent" />
+    </div>
+  );
+}
+
 function tutorialStimulus(step: number, progress: number): GoNoGoStimulus {
   if (step === 0) return GO_NO_GO_STIMULI[Math.min(Math.floor(progress * GO_NO_GO_STIMULI.length), GO_NO_GO_STIMULI.length - 1)]!;
   if (step === 2) return progress < 0.55 ? 'BATIK' : 'CANDI';
@@ -118,24 +151,7 @@ function tutorialStimulus(step: number, progress: number): GoNoGoStimulus {
 
 function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; mode: GameMode; step: number; progress: number }) {
   if (mode === 'SEQUENCE_MEMORY') {
-    const activeCode = sequenceTutorialTile(step, progress);
-    return (
-      <div className="grid w-full max-w-xl grid-cols-2 gap-5 rounded-lg border-4 border-ink bg-[#171717] p-6 sm:gap-7 sm:p-8" role="img" aria-label="Panel tombol hijau, biru, kuning, dan merah">
-        {SEQUENCE_TILES.map((tile) => {
-          const active = tile.code === activeCode;
-          return (
-            <div className="grid place-items-center text-center" key={tile.code}>
-              <span className="relative block aspect-square w-full max-w-28">
-                {active && <span aria-hidden className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}
-                <span aria-hidden className={`relative block size-full rounded-full border-8 border-[#080808] transition ${active ? 'scale-105 brightness-125' : 'brightness-75'}`} style={{ backgroundColor: tile.color, filter: active ? `drop-shadow(0 0 24px ${tile.color})` : 'none' }} />
-              </span>
-              <strong className="mt-3 block text-lg text-white">{tile.label}</strong>
-              <span className="mt-1 block text-sm font-bold text-white/70">{tile.icon}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
+    return <SequenceConsole activeCode={sequenceTutorialTile(step, progress)} phase={step === 0 ? 'INTRO' : step === 3 ? 'RESPOND' : step === 5 ? 'READY' : 'WATCH'} />;
   }
   if (mode === 'GO_NO_GO') {
     const stimulus = tutorialStimulus(step, progress);
@@ -163,10 +179,10 @@ function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; 
             : 30 + progress * 35;
   return (
     <div className="grid w-full max-w-xl place-items-center gap-5 p-4 text-center sm:p-6">
-      <SqueezableFruit fruit={fruit} squeezePercent={grip} />
+      <SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} />
       <div className="w-full max-w-sm">
-        <div className="h-3 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#d67b1f] transition-transform duration-100" style={{ transform: `scaleX(${grip / 100})` }} /></div>
-        <p className="mt-4 mb-0 text-xl font-black">{step === 4 ? 'Lepaskan perlahan' : step === 3 ? 'Tahan genggamannya' : 'Genggam dengan nyaman'}</p>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm font-black tracking-[0.08em] text-muted uppercase">Tekanan</span><strong className="text-2xl tabular-nums">{Math.round(grip)}%</strong></div>
+        <div className="relative mt-3 h-3 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span aria-hidden className="absolute top-1/2 right-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div>
       </div>
     </div>
   );
@@ -188,6 +204,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   const tutorialStateRef = useRef({ step: 0, isPlaying: false, imagesReady: mode !== 'GO_NO_GO', imageError: false });
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsGesture, setNeedsGesture] = useState(false);
   const [audioError, setAudioError] = useState(false);
@@ -204,8 +221,9 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   }
 
   function stopAutoAdvance() {
-    if (autoAdvanceRef.current !== null) window.clearTimeout(autoAdvanceRef.current);
+    if (autoAdvanceRef.current !== null) window.clearInterval(autoAdvanceRef.current);
     autoAdvanceRef.current = null;
+    setAutoAdvanceSeconds(null);
   }
 
   function updateProgress() {
@@ -296,10 +314,19 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
       stopFrame();
       stopAutoAdvance();
       if (step < definition.steps.length - 1) {
-        autoAdvanceRef.current = window.setTimeout(() => {
-          autoAdvanceRef.current = null;
-          setStep((currentStep) => Math.min(currentStep + 1, definition.steps.length - 1));
-        }, 700);
+        setAutoAdvanceSeconds(3);
+        autoAdvanceRef.current = window.setInterval(() => {
+          setAutoAdvanceSeconds((seconds) => {
+            if (seconds === null) return null;
+            if (seconds <= 1) {
+              if (autoAdvanceRef.current !== null) window.clearInterval(autoAdvanceRef.current);
+              autoAdvanceRef.current = null;
+              setStep((currentStep) => Math.min(currentStep + 1, definition.steps.length - 1));
+              return null;
+            }
+            return seconds - 1;
+          });
+        }, 1_000);
       }
     };
     const handleError = () => {
@@ -390,6 +417,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
             <p className="mt-5 mb-0 text-xl leading-9">{current.instruction}</p>
             <p className="mt-4 mb-0 text-base leading-7 text-muted">{current.caption}</p>
             <div aria-label={`Progres panduan suara ${Math.round(progress * 100)} persen`} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(progress * 100)} className="mt-7 h-2 overflow-hidden rounded-full bg-divider" role="progressbar"><div className="h-full origin-left bg-accent transition-transform duration-100" style={{ transform: `scaleX(${progress})` }} /></div>
+            {autoAdvanceSeconds !== null && <div className="mt-4 flex items-center gap-3" role="status"><span className="grid size-9 place-items-center rounded-full bg-brand-soft text-lg font-black text-accent">{autoAdvanceSeconds}</span><span className="font-bold text-muted">Langkah berikutnya segera dimulai…</span></div>}
             {audioError && <p className="mt-3 mb-0 text-sm font-bold text-danger" role="alert">Panduan suara belum dapat diputar. Anda tetap dapat membaca petunjuk di layar.</p>}
             {!imagesReady && !imageError && <p className="mt-3 mb-0 text-sm font-bold text-muted" role="status">Menyiapkan gambar permainan…</p>}
             {imageError && <p className="mt-3 mb-0 text-sm font-bold text-danger" role="alert">Gambar permainan belum dapat dimuat. Periksa koneksi lalu muat ulang halaman.</p>}
