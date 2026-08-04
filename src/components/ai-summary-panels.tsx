@@ -5,7 +5,5 @@ function SummaryAudience({ label, summary }: { label: string; summary: Extract<A
 }
 
 export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
-  if (summary.status === 'PENDING') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-canvas/50 p-4 text-center text-sm font-bold text-muted">Ringkasan peserta dan dokter sedang disiapkan oleh AI lokal.</section>;
-  if (summary.status === 'UNAVAILABLE') return <section className="rounded-md border-2 border-divider bg-canvas/50 p-4 text-center text-sm font-bold text-muted">Ringkasan AI belum tersedia untuk sesi ini.</section>;
-  return <section aria-label="Ringkasan AI" className="grid gap-3 md:grid-cols-2"><SummaryAudience label="Untuk peserta" summary={summary.participant} /><SummaryAudience label="Untuk dokter" summary={summary.clinician} /></section>;
+  return <section aria-label="Ringkasan hasil" className="grid gap-3"><div className="grid gap-3 md:grid-cols-2"><SummaryAudience label="Untuk peserta" summary={summary.participant} /><SummaryAudience label="Untuk dokter" summary={summary.clinician} /></div>{summary.status !== 'READY' && <p aria-live="polite" className="m-0 rounded-sm bg-canvas/60 px-3 py-2 text-center text-xs font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan otomatis tersedia; penyempurnaan AI sedang diproses.' : 'Ringkasan otomatis berbasis statistik sesi.'}</p>}</section>;
 }

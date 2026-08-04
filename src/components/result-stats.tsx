@@ -43,8 +43,8 @@ function getStats(metrics: GameMetrics, score: number): ResultStat[] {
       { icon: Apple, label: 'Buah & target', tone: 'green', value: `${fruitLabel(metrics.fruitVariant)} · ${metrics.targetKilograms.toFixed(2)} kg` },
       { icon: Gauge, label: 'Beban puncak', tone: 'orange', value: metrics.gripSamples.length > 0 ? `${metrics.peakKilograms.toFixed(2)} kg` : '—' },
       { icon: Activity, label: 'Beban rata-rata', tone: 'blue', value: `${metrics.averageKilograms.toFixed(2)} kg` },
-      { icon: Clock3, label: 'Di atas target', tone: 'purple', value: `${(metrics.timeAtOrAboveTargetMs / 1000).toFixed(1)} dtk` },
-      { icon: metrics.targetCompleted ? CheckCircle2 : CircleX, label: 'Status & durasi', tone: metrics.targetCompleted ? 'green' : 'red', value: `${metrics.targetCompleted ? 'Tercapai' : 'Belum tercapai'} · ${Math.round(metrics.sessionElapsedMs / 1000)} dtk` },
+      { icon: Clock3, label: 'Tahanan kontinu', tone: 'purple', value: `${(metrics.continuousHoldMs / 1000).toFixed(1)} dtk` },
+      { icon: metrics.targetCompleted ? CheckCircle2 : CircleX, label: 'Hasil & waktu', tone: metrics.targetCompleted ? 'green' : 'red', value: `${metrics.targetCompleted ? 'Target tercapai' : 'Waktu habis'} · ${(metrics.sessionElapsedMs / 1000).toFixed(1)} dtk` },
     ];
   }
 

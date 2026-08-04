@@ -129,7 +129,7 @@ export const ParticipantDtoSchema = z.object({
 });
 export type ParticipantDto = z.infer<typeof ParticipantDtoSchema>;
 export const ParticipantOverallMetricsSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('MOTOR_GRIP'), averageScore: z.number().int().min(0).max(1000), averagePeakGripPercent: z.number().min(0).max(100), averageContinuousHoldMs: z.number().nonnegative(), targetCompletionPercent: z.number().min(0).max(100) }),
+  z.object({ mode: z.literal('MOTOR_GRIP'), averageScore: z.number().int().min(0).max(1000), averagePeakKilograms: z.number().min(0).max(5), averageKilograms: z.number().min(0).max(5), averageContinuousHoldMs: z.number().nonnegative() }),
   z.object({ mode: z.literal('GO_NO_GO'), averageScore: z.number().int().min(0).max(1000), averageAccuracyPercent: z.number().min(0).max(100), averageReactionMs: z.number().nonnegative().nullable(), totalTrials: z.number().int().nonnegative(), totalHits: z.number().int().nonnegative(), totalMisses: z.number().int().nonnegative(), totalFalsePositives: z.number().int().nonnegative(), totalCorrectRejections: z.number().int().nonnegative() }),
   z.object({ mode: z.literal('SEQUENCE_MEMORY'), averageScore: z.number().int().min(0).max(1000), averageMemorySpan: z.number().min(0).max(6), averageFirstResponseMs: z.number().nonnegative().nullable(), levelLatencies: z.array(z.object({ level: z.number().int().min(1).max(6), latencyMs: z.number().nonnegative(), samples: z.number().int().positive() })).max(6) }),
 ]);
@@ -146,6 +146,7 @@ export const ParticipantModeSummaryDtoSchema = z.object({
 });
 export const ParticipantDetailDtoSchema = ParticipantDtoSchema.extend({
   modeSummaries: z.array(ParticipantModeSummaryDtoSchema).length(3),
+  aggregateSummary: z.object({ savedSessionsTotal: z.number().int().nonnegative(), participantSummary: z.string().max(700), clinicianSummary: z.string().max(1000), updatedAt: IsoDateSchema }).nullable(),
 });
 export type ParticipantDetailDto = z.infer<typeof ParticipantDetailDtoSchema>;
 export const ParticipantSearchQuerySchema = z.object({
@@ -379,13 +380,9 @@ export const AiAudienceSummarySchema = z.object({
   observations: z.array(z.string().max(140)).max(3),
 });
 export const AiSummaryDtoSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('PENDING') }),
-  z.object({ status: z.literal('UNAVAILABLE') }),
-  z.object({
-    status: z.literal('READY'),
-    participant: AiAudienceSummarySchema,
-    clinician: AiAudienceSummarySchema,
-  }),
+  z.object({ status: z.literal('PENDING'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
+  z.object({ status: z.literal('UNAVAILABLE'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
+  z.object({ status: z.literal('READY'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
 ]);
 export type AiSummaryDto = z.infer<typeof AiSummaryDtoSchema>;
 export const GameResultDtoSchema = z.object({

@@ -255,9 +255,22 @@ function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: M
     playAttentionTick();
   }, [visual?.activeElapsedMs, visual?.phase]);
 
+  const instruction = visual?.phase === 'TARGET_PREVIEW'
+    ? 'Contoh target: genggam saat Wayang muncul'
+    : visual?.phase === 'TURN_CUE'
+      ? 'Bersiap'
+      : visual?.phase === 'FEEDBACK'
+        ? visual.feedback === 'CORRECT'
+          ? 'Benar'
+          : visual.feedback === 'MISS'
+            ? 'Target terlewat'
+            : 'Kurang tepat'
+        : visual?.feedback === 'WAIT'
+          ? 'Genggaman tercatat, lepaskan alat'
+          : 'Genggam hanya jika gambar Wayang';
   return (
     <div className="mx-auto w-full max-w-5xl">
-      {visual?.phase === 'STIMULUS' ? <SessionCountdown remainingMs={visual.remainingMs} totalMs={180_000} /> : <p className="m-0 text-center text-lg font-black text-muted">Perhatikan gambar</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3"><p aria-live="polite" className="m-0 text-lg font-black text-muted">{instruction}</p>{visual?.phase === 'STIMULUS' && <SessionCountdown remainingMs={visual.remainingMs} totalMs={180_000} />}</div>
       <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
         {asset && <img alt="" className="mx-auto aspect-[4/5] w-full max-w-72 rounded-md object-contain" key={`${visual?.trialNumber}-${stimulus}-${visual?.assetIndex}`} src={asset.src} />}
       </div>
