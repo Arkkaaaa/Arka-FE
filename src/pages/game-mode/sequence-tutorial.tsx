@@ -205,7 +205,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   const audioRef = useRef<HTMLAudioElement>(null);
   const frameRef = useRef<number | null>(null);
   const autoAdvanceRef = useRef<number | null>(null);
-  const tutorialStateRef = useRef({ step: 0, isPlaying: false, imagesReady: mode !== 'GO_NO_GO', imageError: false });
+  const tutorialStateRef = useRef({ step: 0, isPlaying: false });
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState<number | null>(null);
@@ -217,7 +217,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   const definition = tutorials[mode];
   const selected = GAME_MODES.find((item) => item.mode === mode)!;
   const current = definition.steps[step]!;
-  tutorialStateRef.current = { step, isPlaying, imagesReady, imageError };
+  tutorialStateRef.current = { step, isPlaying };
 
   function stopFrame() {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -393,7 +393,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
         if (state.step < definition.steps.length - 1) changeStep(state.step + 1);
-        else if (state.imagesReady && !state.imageError) leaveTutorial(onReady);
+        else leaveTutorial(onReady);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -405,7 +405,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
       <audio aria-label={`Panduan suara langkah ${step + 1}`} lang={definition.audioLanguage} preload="auto" ref={audioRef} />
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p></div>
-        <div className="flex items-center gap-4"><p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p><Button disabled={!imagesReady || imageError} onClick={() => leaveTutorial(onReady)} variant="quiet">Lewati tutorial</Button></div>
+        <div className="flex items-center gap-4"><p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p><Button onClick={() => leaveTutorial(onReady)} variant="quiet">Lewati tutorial</Button></div>
       </header>
 
       <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
