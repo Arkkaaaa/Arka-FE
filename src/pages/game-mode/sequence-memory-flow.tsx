@@ -10,7 +10,7 @@ import { ResultStats } from '../../components/result-stats.tsx';
 import { fruitLabel, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
-import { goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
+import { goNoGoStimulusAssetAt, goNoGoTargetAudioUrl, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useCancelPreparationMutation, useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
 import { useGameSessionQuery } from '../../hooks/games/use-game-session-query.ts';
@@ -18,7 +18,6 @@ import { useSessionSocket, useSetupSocket } from '../../hooks/realtime/use-realt
 import {
   GameParticipantEntry,
   GameTutorial,
-  playAttentionTick,
   playCountdownTone,
   playSequenceTone,
   playStartTone,
@@ -231,12 +230,14 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
   );
 }
 
-function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: MutableRefObject<boolean>; snapshot: SessionSnapshot }) {
+function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
-  const stimulus = visual?.stimulus as GoNoGoStimulus | null | undefined;
-  const attentionTickRef = useRef<number | null>(null);
-  const asset = stimulus && visual?.assetIndex !== null && visual?.assetIndex !== undefined
-    ? goNoGoStimulusAssetAt(stimulus, visual.assetIndex)
+  const targetAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isTargetPreview = visual?.phase === 'TARGET_PREVIEW';
+  const stimulus = (isTargetPreview ? visual?.targetStimulus : visual?.phase === 'STIMULUS' ? visual.stimulus : null) as GoNoGoStimulus | null | undefined;
+  const assetIndex = isTargetPreview ? visual?.targetAssetIndex : visual?.phase === 'STIMULUS' ? visual.assetIndex : null;
+  const asset = stimulus && assetIndex !== null && assetIndex !== undefined
+    ? goNoGoStimulusAssetAt(stimulus, assetIndex)
     : null;
 
   useEffect(() => {
@@ -244,48 +245,54 @@ function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: M
   }, []);
 
   useEffect(() => {
-    if (visual?.phase !== 'TURN_CUE' || initialCuePlayedRef.current) return;
-    initialCuePlayedRef.current = true;
-    playTurnCue();
-  }, [visual?.phase]);
+    const audio = new Audio();
+    targetAudioRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      targetAudioRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
-    if (visual?.phase !== 'STIMULUS') {
-      attentionTickRef.current = null;
-      return;
-    }
-    const second = Math.floor((visual.activeElapsedMs ?? 0) / 1_000);
-    if (attentionTickRef.current === second) return;
-    attentionTickRef.current = second;
-    playAttentionTick();
-  }, [visual?.activeElapsedMs, visual?.phase]);
+    const audio = targetAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    if (visual?.phase !== 'TARGET_PREVIEW') return;
+    audio.src = goNoGoTargetAudioUrl(visual.targetStimulus, visual.targetAssetIndex);
+    void audio.play().catch(() => undefined);
+  }, [visual?.phase, visual?.questionNumber, visual?.targetAssetIndex, visual?.targetStimulus]);
 
-  const instruction = visual?.phase === 'TARGET_PREVIEW'
-    ? 'Contoh target: genggam saat Wayang muncul'
-    : visual?.phase === 'TURN_CUE'
-      ? 'Bersiap'
-      : visual?.phase === 'FEEDBACK'
-        ? visual.feedback === 'CORRECT'
-          ? 'Benar'
-          : visual.feedback === 'MISS'
-            ? 'Target terlewat'
-            : 'Kurang tepat'
-        : visual?.feedback === 'WAIT'
-          ? 'Genggaman tercatat, lepaskan alat'
-          : 'Genggam hanya jika gambar Wayang';
-  return (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="flex flex-wrap items-center justify-between gap-3"><p aria-live="polite" className="m-0 text-lg font-black text-muted">{instruction}</p>{visual?.phase === 'STIMULUS' && <SessionCountdown remainingMs={visual.remainingMs} totalMs={180_000} />}</div>
-      <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
-        {asset && <img alt="" className="mx-auto aspect-[4/5] w-full max-w-72 rounded-md object-contain" key={`${visual?.trialNumber}-${stimulus}-${visual?.assetIndex}`} src={asset.src} />}
+  if (isTargetPreview) {
+    return (
+      <div className="mx-auto grid min-h-[34rem] w-full max-w-5xl place-items-center p-6 text-center sm:p-8">
+        <div>
+          {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-sm object-contain sm:max-w-md" key={`${visual.questionNumber}-${stimulus}-${assetIndex}`} src={asset.src} />}
+          <p className="mt-5 mb-0 text-3xl font-black">Perhatikan</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (visual?.phase === 'STIMULUS') {
+    return (
+      <div className="mx-auto w-full max-w-5xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-lg font-black text-muted"><p className="m-0">Soal {visual.levelQuestionNumber} dari {visual.levelTrialCount}</p><p className="m-0">Level {visual.level} dari {visual.totalLevels}</p></div>
+        <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
+          {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-sm object-contain sm:max-w-md" key={`${visual.level}-${visual.questionNumber}-${stimulus}-${assetIndex}`} src={asset.src} />}
+        </div>
+      </div>
+    );
+  }
+
+  return <div aria-hidden className="mx-auto min-h-[34rem] w-full max-w-5xl" />;
 }
 
-function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, initialCuePlayedRef, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; initialCuePlayedRef: MutableRefObject<boolean>; mode: GameMode; snapshot: SessionSnapshot }) {
+function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; mode: GameMode; snapshot: SessionSnapshot }) {
   if (mode === 'MOTOR_GRIP') return <MotorGripBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={fruit} snapshot={snapshot} />;
-  if (mode === 'GO_NO_GO') return <GoNoGoBoard initialCuePlayedRef={initialCuePlayedRef} snapshot={snapshot} />;
+  if (mode === 'GO_NO_GO') return <GoNoGoBoard snapshot={snapshot} />;
   return <SequenceBoard snapshot={snapshot} />;
 }
 
@@ -334,7 +341,6 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   const abortButtonRef = useRef<HTMLButtonElement>(null);
   const abortDialogRef = useRef<HTMLDialogElement>(null);
   const encouragementAudioRef = useRef<HTMLAudioElement | null>(null);
-  const initialGoNoGoCuePlayedRef = useRef(false);
   const encouragementStateRef = useRef<EncouragementState>({ started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null });
   const preparation = useCreatePreparationMutation(csrfToken);
   const cancelPreparation = useCancelPreparationMutation(csrfToken);
@@ -472,7 +478,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   function reset() {
     encouragementAudioRef.current?.pause();
     encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
-    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; initialGoNoGoCuePlayedRef.current = false; setSessionId(null); setFruit('STRAWBERRY'); setStage('participant');
+    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; setSessionId(null); setFruit('STRAWBERRY'); setStage('participant');
   }
 
   if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit('STRAWBERRY'); setStage('tutorial'); }} />;
@@ -494,6 +500,6 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>}</div></section>;
 
   return (
-    <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={activeFruit} initialCuePlayedRef={initialGoNoGoCuePlayedRef} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
+    <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={activeFruit} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
   );
 }

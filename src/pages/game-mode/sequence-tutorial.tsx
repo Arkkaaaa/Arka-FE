@@ -7,7 +7,7 @@ import { SqueezableFruit, type FruitVariant } from '../../components/squeezable-
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
 import { tutorials } from '../../constants/tutorials.ts';
-import { GO_NO_GO_STIMULI, goNoGoStimulusAsset, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
+import { goNoGoStimulusAsset, preloadGoNoGoImages } from '../../constants/go-no-go-stimuli.ts';
 import { useCreateParticipantMutation } from '../../hooks/participants/use-participant-mutations.ts';
 import { useParticipantSearchQuery } from '../../hooks/participants/use-participant-queries.ts';
 
@@ -51,10 +51,6 @@ export function playSequenceTone(frequency: number, durationMs = 220): void {
 
 export function playCountdownTone(value: number): void {
   playSequenceTone(value === 1 ? 784 : 587, 140);
-}
-
-export function playAttentionTick(): void {
-  playSequenceTone(660, 70);
 }
 
 export function playStartTone(): void {
@@ -143,30 +139,16 @@ export function SequenceConsole({ activeCode, phase }: { activeCode: string | nu
   );
 }
 
-function tutorialStimulus(step: number, progress: number): GoNoGoStimulus {
-  if (step === 0) return GO_NO_GO_STIMULI[Math.min(Math.floor(progress * GO_NO_GO_STIMULI.length), GO_NO_GO_STIMULI.length - 1)]!;
-  if (step === 2) return progress < 0.55 ? 'BATIK' : 'CANDI';
-  if (step === 4) {
-    const practice: readonly GoNoGoStimulus[] = ['WAYANG', 'BATIK', 'WAYANG', 'ANGKLUNG'];
-    return practice[Math.min(Math.floor(progress * practice.length), practice.length - 1)]!;
-  }
-  return 'WAYANG';
-}
-
 function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; mode: GameMode; step: number; progress: number }) {
   if (mode === 'SEQUENCE_MEMORY') {
     return <SequenceConsole activeCode={sequenceTutorialTile(step, progress)} phase={step === 0 ? 'INTRO' : step === 3 ? 'RESPOND' : step === 5 ? 'READY' : 'WATCH'} />;
   }
   if (mode === 'GO_NO_GO') {
-    const stimulus = tutorialStimulus(step, progress);
-    const asset = goNoGoStimulusAsset(stimulus, `tutorial:${step}`);
-    const target = stimulus === 'WAYANG';
-    const released = step === 3 && progress > 0.72;
-    const action = target && !released ? 'Genggam' : released ? 'Lepaskan' : 'Tunggu';
+    const asset = goNoGoStimulusAsset('WAYANG', 'tutorial');
     return (
-      <div className="grid w-full max-w-xl place-items-center gap-4 p-4 text-center sm:p-6" role="img" aria-label={`${asset.alt}. ${action}`}>
-        <img alt={asset.alt} className="aspect-[4/5] w-full max-w-72 object-contain" src={asset.src} />
-        <p className="m-0 text-2xl font-black">{target && !released ? 'Genggam saat melihat Wayang' : released ? 'Lepaskan alat kembali' : 'Perhatikan gambar berikutnya'}</p>
+      <div className="grid w-full max-w-xl place-items-center gap-4 p-4 text-center sm:p-6">
+        <img alt={asset.alt} className="aspect-[4/5] w-full max-w-sm object-contain" src={asset.src} />
+        <p className="m-0 text-2xl font-black">Perhatikan</p>
       </div>
     );
   }
@@ -240,7 +222,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
 
   async function playNarration() {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !current.audioSrc) return;
     setAudioError(false);
     try {
       await audio.play();
@@ -295,8 +277,11 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
     if (!audio) return;
     stopFrame();
     audio.pause();
-    audio.src = current.audioSrc;
-    audio.load();
+    audio.removeAttribute('src');
+    if (current.audioSrc) {
+      audio.src = current.audioSrc;
+      audio.load();
+    }
     setProgress(0);
     setIsPlaying(false);
     setNeedsGesture(false);
@@ -404,36 +389,35 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
     <section className="mx-auto flex h-full min-h-0 w-full max-w-[88rem] flex-col overflow-hidden" aria-labelledby="tutorial-title">
       <audio aria-label={`Panduan suara langkah ${step + 1}`} lang={definition.audioLanguage} preload="auto" ref={audioRef} />
       <header className="flex flex-wrap items-start justify-between gap-5">
-        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p></div>
+        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1>{mode !== 'GO_NO_GO' && <p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p>}</div>
         <div className="flex items-center gap-4"><p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p><Button onClick={() => leaveTutorial(onReady)} variant="quiet">Lewati tutorial</Button></div>
       </header>
 
-      <div className="grid min-h-0 flex-1 items-center gap-10 overflow-y-auto py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+      <div className={`grid min-h-0 flex-1 items-center gap-10 overflow-y-auto py-8 ${mode === 'GO_NO_GO' ? '' : 'lg:grid-cols-[1.15fr_0.85fr] lg:gap-16'}`}>
         <AnimatePresence initial={false} mode="wait">
           <m.div animate={{ opacity: 1, scale: 1, y: 0 }} className="grid w-full place-items-center" exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : -10 }} initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 14 }} key={`${mode}-${step}`} transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}>
             <TutorialVisual fruit={fruit} mode={mode} progress={progress} step={step} />
           </m.div>
         </AnimatePresence>
-        <AnimatePresence initial={false} mode="wait">
+        {mode !== 'GO_NO_GO' && <AnimatePresence initial={false} mode="wait">
           <m.div animate={{ opacity: 1, x: 0 }} className="max-w-xl" exit={{ opacity: 0, x: reduceMotion ? 0 : -18 }} initial={{ opacity: 0, x: reduceMotion ? 0 : 18 }} key={current.title} transition={{ duration: reduceMotion ? 0 : 0.26 }}>
             <p className="m-0 text-sm font-black tracking-[0.1em] text-accent uppercase">Langkah {step + 1}</p>
             <h2 className="mt-3 mb-0 text-4xl font-black tracking-[-0.04em]">{current.title}</h2>
             <p className="mt-5 mb-0 text-xl leading-9">{current.instruction}</p>
-            <p className="mt-4 mb-0 text-base leading-7 text-muted">{current.caption}</p>
-            <div aria-label={`Progres panduan suara ${Math.round(progress * 100)} persen`} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(progress * 100)} className="mt-7 h-2 overflow-hidden rounded-full bg-divider" role="progressbar"><div className="h-full origin-left bg-accent transition-transform duration-100" style={{ transform: `scaleX(${progress})` }} /></div>
+            {current.caption && <p className="mt-4 mb-0 text-base leading-7 text-muted">{current.caption}</p>}
+            {current.audioSrc && <div aria-label={`Progres panduan suara ${Math.round(progress * 100)} persen`} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(progress * 100)} className="mt-7 h-2 overflow-hidden rounded-full bg-divider" role="progressbar"><div className="h-full origin-left bg-accent transition-transform duration-100" style={{ transform: `scaleX(${progress})` }} /></div>}
             {autoAdvanceSeconds !== null && <div className="mt-4 flex items-center gap-3" role="status"><span className="grid size-9 place-items-center rounded-full bg-brand-soft text-lg font-black text-accent">{autoAdvanceSeconds}</span><span className="font-bold text-muted">Langkah berikutnya segera dimulai…</span></div>}
             {audioError && <p className="mt-3 mb-0 text-sm font-bold text-danger" role="alert">Panduan suara belum dapat diputar. Anda tetap dapat membaca petunjuk di layar.</p>}
-            {!imagesReady && !imageError && <p className="mt-3 mb-0 text-sm font-bold text-muted" role="status">Menyiapkan gambar permainan…</p>}
-            {imageError && <p className="mt-3 mb-0 text-sm font-bold text-danger" role="alert">Gambar permainan belum dapat dimuat. Periksa koneksi lalu muat ulang halaman.</p>}
           </m.div>
-        </AnimatePresence>
+        </AnimatePresence>}
+        {mode === 'GO_NO_GO' && <div>{!imagesReady && !imageError && <p className="m-0 text-sm font-bold text-muted" role="status">Menyiapkan gambar permainan…</p>}{imageError && <p className="m-0 text-sm font-bold text-danger" role="alert">Gambar permainan belum dapat dimuat. Periksa koneksi lalu muat ulang halaman.</p>}</div>}
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 pb-2">
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => leaveTutorial(onBack)} variant="quiet"><ChevronLeft aria-hidden className="size-5" />Kembali ke nama peserta</Button>
-          <Button onClick={isPlaying ? pauseNarration : () => void playNarration()} variant="secondary">{isPlaying ? <Pause aria-hidden className="size-5" /> : <Play aria-hidden className="size-5" />}{isPlaying ? 'Jeda' : needsGesture ? 'Putar panduan' : 'Putar'}</Button>
-          <Button onClick={replayNarration} variant="quiet"><RotateCcw aria-hidden className="size-5" />Ulangi</Button>
+          {current.audioSrc && <Button onClick={isPlaying ? pauseNarration : () => void playNarration()} variant="secondary">{isPlaying ? <Pause aria-hidden className="size-5" /> : <Play aria-hidden className="size-5" />}{isPlaying ? 'Jeda' : needsGesture ? 'Putar panduan' : 'Putar'}</Button>}
+          {current.audioSrc && <Button onClick={replayNarration} variant="quiet"><RotateCcw aria-hidden className="size-5" />Ulangi</Button>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={step === 0} onClick={() => changeStep(step - 1)} variant="quiet"><ChevronLeft aria-hidden className="size-5" />Sebelumnya</Button>
