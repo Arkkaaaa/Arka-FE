@@ -7,12 +7,12 @@ import { Button, buttonClassName } from '../../components/index.ts';
 import { AiSummaryPanels } from '../../components/ai-summary-panels.tsx';
 import { GameResultChart } from '../../components/game-result-charts.tsx';
 import { ResultStats } from '../../components/result-stats.tsx';
-import { fruitLabel, randomFruitVariant, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
+import { fruitLabel, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
-import { goNoGoStimulusAsset, goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
+import { goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
 import { ROUTES } from '../../constants/routes.ts';
-import { useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
+import { useCancelPreparationMutation, useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
 import { useGameSessionQuery } from '../../hooks/games/use-game-session-query.ts';
 import { useSessionSocket, useSetupSocket } from '../../hooks/realtime/use-realtime.ts';
 import {
@@ -61,13 +61,13 @@ function GripLineChart({ samples, compact = false }: { samples: readonly GripSam
   const bottom = 34;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const points = samples.map((sample) => ({ ...sample, x: left + ((sample.elapsedSecond - 1) / 29) * plotWidth, y: top + plotHeight - (sample.kilograms / 5) * plotHeight }));
+  const points = samples.map((sample) => ({ ...sample, x: left + ((sample.elapsedSecond - 1) / 29) * plotWidth, y: top + plotHeight - (sample.kilograms / 120) * plotHeight }));
   const line = points.map((point) => `${point.x},${point.y}`).join(' ');
   return (
     <>
       <svg aria-label="Grafik kekuatan genggaman dalam kilogram setiap detik" className="h-auto w-full" role="img" viewBox={`0 0 ${width} ${height}`}>
-        {[0, 1, 2, 3, 4, 5].map((kg) => {
-          const y = top + plotHeight - (kg / 5) * plotHeight;
+        {[0, 24, 48, 72, 96, 120].map((kg) => {
+          const y = top + plotHeight - (kg / 120) * plotHeight;
           return <g key={kg}><line stroke="#e7e3d7" strokeWidth="1.5" x1={left} x2={left + plotWidth} y1={y} y2={y} />{!compact && <text fill="#625f54" fontSize="13" fontWeight="700" textAnchor="end" x={left - 8} y={y + 4}>{kg} kg</text>}</g>;
         })}
         {line && <polyline fill="none" points={line} stroke="#d67b1f" strokeLinecap="round" strokeLinejoin="round" strokeWidth={compact ? 5 : 4} />}
@@ -297,23 +297,9 @@ function GameResult({ snapshot, onReplay, result = snapshot.result }: { snapshot
 }
 
 function SetupPanel({ mode, snapshot, canStart, fruit }: { mode: GameMode; snapshot: SetupSnapshot | null; canStart: boolean; fruit: FruitVariant }) {
-  const practiceTicking = mode === 'GO_NO_GO' && snapshot?.state === 'PRACTICING' && snapshot.practiceStimulus !== undefined && snapshot.practiceFeedback !== 'CORRECT';
-
-  useEffect(() => {
-    if (!practiceTicking) return;
-    playAttentionTick();
-    const timer = window.setInterval(playAttentionTick, 1_000);
-    return () => window.clearInterval(timer);
-  }, [practiceTicking]);
-
   if (mode === 'SEQUENCE_MEMORY') return <div className="bg-gradient-to-br from-[#22221f] via-[#11110f] to-[#28261e] p-6 sm:p-8"><div className="mx-auto grid max-w-lg grid-cols-2 gap-5 sm:gap-7">{SEQUENCE_TILES.map((tile) => { const checked = snapshot?.checkedButton === tile.code; return <div className="grid place-items-center gap-3 rounded-md border border-white/10 bg-white/5 p-4" key={tile.code}><span className="relative block aspect-square w-full max-w-24">{checked && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}<span className={`relative block size-full rounded-full border-8 border-[#080808] transition ${checked ? 'scale-105 brightness-125' : 'brightness-75'}`} style={{ backgroundColor: tile.color }} /></span><span className="text-center"><strong className="block text-base text-white">{tile.label}</strong><span className="mt-1 block text-xs font-bold text-white/60">{tile.icon}</span></span></div>; })}</div></div>;
-  if (mode === 'GO_NO_GO') {
-    const stimulus = snapshot?.practiceStimulus as GoNoGoStimulus | undefined;
-    const asset = stimulus ? goNoGoStimulusAsset(stimulus, 'practice') : null;
-    const practiceComplete = snapshot?.state === 'PRACTICING' && snapshot.practiceFeedback === 'CORRECT' && !stimulus;
-    return <div className="grid min-h-80 place-items-center bg-white p-8 text-center"><div className="w-full">{asset ? <img alt="" className="mx-auto aspect-[4/5] w-full max-w-52 rounded-md object-contain shadow-[0_4px_0_#d9d4c5]" src={asset.src} /> : <span className="mx-auto grid size-20 place-items-center rounded-full bg-white"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span>}<h3 className="mt-5 mb-0 text-4xl font-black">{practiceComplete || canStart ? 'Alat siap' : snapshot?.state === 'PRACTICING' ? stimulus ? 'Perhatikan gambar' : 'Latihan' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{practiceComplete || canStart ? 'Permainan segera dimulai.' : snapshot?.practiceFeedback === 'TRY_AGAIN' ? 'Coba lagi dengan tenang.' : snapshot?.practiceFeedback === 'WAIT' ? 'Tunggu gambar berikutnya.' : snapshot?.state === 'PRACTICING' ? 'Genggam sekali saat Wayang muncul.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
-  }
-  return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Kekuatan tercatat' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{canStart ? 'Permainan segera dimulai.' : 'Ikuti petunjuk di atas.'}</p>{!canStart && snapshot?.sensorRaw !== undefined && <p className="mt-2 mb-0 text-sm font-bold text-muted">Sensor {snapshot.sensorRaw} • Sampel genggam {snapshot.activeSampleCount ?? 0}/15</p>}</div></div>;
+  if (mode === 'GO_NO_GO') return <div className="grid min-h-80 place-items-center bg-white p-8 text-center"><div><span className="mx-auto grid size-20 place-items-center rounded-full bg-[#eaf3ff]"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Alat siap' : snapshot?.instruction ?? 'Genggam alat satu kali.'}</h3>{canStart && <p className="mt-3 mb-0 text-lg font-bold text-muted">Permainan segera dimulai.</p>}</div></div>;
+  return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Alat siap' : snapshot?.instruction ?? 'Genggam alat satu kali.'}</h3>{canStart && <p className="mt-3 mb-0 text-lg font-bold text-muted">Permainan segera dimulai.</p>}</div></div>;
 }
 
 export type GameFlowStage = 'participant' | 'tutorial' | 'setup' | 'session';
@@ -330,7 +316,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   const [stage, setStageState] = useState<GameFlowStage>('participant');
   const setStage = useCallback((next: GameFlowStage) => { setStageState(next); onStageChange(next); }, [onStageChange]);
   const [participant, setParticipant] = useState<GameParticipantIdentity | null>(null);
-  const [fruit, setFruit] = useState<FruitVariant>(() => randomFruitVariant());
+  const [fruit, setFruit] = useState<FruitVariant>('STRAWBERRY');
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
@@ -346,12 +332,16 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   const initialGoNoGoCuePlayedRef = useRef(false);
   const encouragementStateRef = useRef<EncouragementState>({ started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null });
   const preparation = useCreatePreparationMutation(csrfToken);
+  const cancelPreparation = useCancelPreparationMutation(csrfToken);
   const createSession = useCreateGameSessionMutation(csrfToken);
   const persistedSession = useGameSessionQuery(sessionId ?? undefined, { pollWhileActive: true, pollWhileSaving: true, retry: true });
   const setupSocket = useSetupSocket(preparation.data?.setupId ?? null);
   const sessionSocket = useSessionSocket(sessionId);
   const setupSnapshot = setupSocket.message?.type === 'setup.snapshot' ? setupSocket.message.payload : null;
   const sessionSnapshot = sessionSocket.message?.type === 'session.snapshot' ? sessionSocket.message.payload : null;
+  const activeFruit = sessionSnapshot?.visual?.mode === 'MOTOR_GRIP'
+    ? sessionSnapshot.visual.fruitVariant
+    : preparation.data?.fruitVariant ?? fruit;
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
   const persistedStatus = persistedSession.data?.status;
   const status = sessionSnapshot?.status ?? (persistedStatus && persistedStatus !== 'BINDING' ? persistedStatus : createSession.data?.status ?? 'BINDING');
@@ -362,10 +352,8 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     : canStart
       ? 'Siap'
       : setupSnapshot?.state === 'CALIBRATING'
-        ? 'Kalibrasi'
-        : setupSnapshot?.state === 'PRACTICING'
-          ? 'Latihan'
-          : 'Menghubungkan';
+        ? 'Menunggu genggaman'
+        : 'Menghubungkan';
 
   useEffect(() => {
     const audio = new Audio();
@@ -385,8 +373,8 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     sessionStartingRef.current = false;
     createSession.reset();
     preparation.reset();
-    preparation.mutate({ mode, displayName: participant.displayName, participantReference: participant.participantReference, privacyAcknowledged: true, ...(mode === 'MOTOR_GRIP' ? { fruitVariant: fruit } : {}) });
-  }, [createSession, csrfToken, fruit, mode, participant, preparation, setStage]);
+    preparation.mutate({ mode, displayName: participant.displayName, participantReference: participant.participantReference, privacyAcknowledged: true });
+  }, [createSession, csrfToken, mode, participant, preparation, setStage]);
 
   const startSession = useCallback(async () => {
     const current = preparation.data;
@@ -410,10 +398,19 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
 
   useEffect(() => { if (stage === 'setup' && canStart && !createSession.isError) void startSession(); }, [canStart, createSession.isError, stage, startSession]);
 
-  function backToTutorial() {
-    if (createSession.isPending || sessionStartingRef.current) return;
+  async function backToTutorial() {
+    if (createSession.isPending || cancelPreparation.isPending || sessionStartingRef.current) return;
+    const current = preparation.data;
+    if (current && !setupTerminal) {
+      try {
+        await cancelPreparation.mutateAsync(current.preparationId);
+      } catch {
+        return;
+      }
+    }
     setupSocket.close();
     preparation.reset();
+    cancelPreparation.reset();
     createSession.reset();
     sessionAttemptRef.current = null;
     sessionStartingRef.current = false;
@@ -464,17 +461,17 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   function reset() {
     encouragementAudioRef.current?.pause();
     encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
-    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; initialGoNoGoCuePlayedRef.current = false; setSessionId(null); setFruit(randomFruitVariant()); setStage('participant');
+    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; initialGoNoGoCuePlayedRef.current = false; setSessionId(null); setFruit('STRAWBERRY'); setStage('participant');
   }
 
-  if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit(randomFruitVariant()); setStage('tutorial'); }} />;
+  if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit('STRAWBERRY'); setStage('tutorial'); }} />;
   if (stage === 'tutorial') return <GameTutorial fruit={fruit} mode={mode} onBack={() => setStage('participant')} onReady={() => { resumeGameAudio(); startPreparation(); }} participantName={participantName} />;
 
   if (stage === 'setup') return (
     <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[78rem] flex-col justify-center py-20 sm:py-16" aria-labelledby="setup-title">
-      <Button className="absolute top-3 left-0" disabled={createSession.isPending || sessionStartingRef.current} onClick={backToTutorial} variant="quiet"><ArrowLeft aria-hidden className="size-5" />Kembali</Button>
-      <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16"><div><p className="landing-eyebrow">Persiapan untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan {selected.device.toLowerCase()}</h1><p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">{mode === 'SEQUENCE_MEMORY' ? 'Tekan tombol yang menyala. Permainan akan mulai otomatis.' : 'Ikuti petunjuk singkat. Permainan akan mulai otomatis.'}</p><div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p><div className="mt-4 flex items-center gap-4"><span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span><div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? selected.device}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">{selected.title}</p></div></div></div></div>
-        {preparation.isPending ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="status"><span className="grid size-16 place-items-center rounded-full bg-brand-soft"><Gamepad2 aria-hidden className="size-8 animate-pulse" /></span><p className="m-0 text-xl font-black">Menyiapkan perangkat…</p></div> : preparation.isError || setupTerminal || setupFailed || createSession.isError ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="alert"><span className="grid size-16 place-items-center rounded-full bg-danger-soft"><AlertTriangle aria-hidden className="size-8 text-danger" /></span><p className="m-0 max-w-md text-lg font-bold">{preparation.isError ? messageOf(preparation.error) : createSession.isError ? messageOf(createSession.error) : setupTerminal ? 'Persiapan perangkat berakhir. Coba lagi.' : 'Perangkat belum terhubung. Coba lagi.'}</p><Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">Coba lagi</Button></div> : <div className="overflow-hidden rounded-lg border-2 border-ink bg-white/95 shadow-[0_7px_0_#d9d4c5]"><div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-5 py-4 sm:px-6"><div><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Pemeriksaan alat</p><p className="mt-1 mb-0 font-bold text-muted">{setupSnapshot?.instruction ?? 'Menghubungkan perangkat.'}</p></div><span className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black ${canStart ? 'bg-brand-soft text-success' : 'bg-divider text-muted'}`}>{canStart ? <CheckCircle2 aria-hidden className="size-5" /> : <span aria-hidden className="size-2 animate-pulse rounded-full bg-accent" />}{setupStatusLabel}</span></div><SetupPanel canStart={canStart} fruit={fruit} mode={mode} snapshot={setupSnapshot} /><p className="m-0 border-t-2 border-divider bg-white px-5 py-4 text-center font-black text-muted sm:px-6">{canStart ? 'Perangkat siap. Permainan segera dimulai.' : setupSnapshot?.instruction ?? 'Ikuti petunjuk untuk menyelesaikan pemeriksaan.'}</p></div>}
+      <Button className="absolute top-3 left-0" disabled={createSession.isPending || cancelPreparation.isPending || sessionStartingRef.current} onClick={() => void backToTutorial()} variant="quiet"><ArrowLeft aria-hidden className="size-5" />Kembali</Button>
+      <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16"><div><p className="landing-eyebrow">Persiapan untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan {selected.device.toLowerCase()}</h1><p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">{mode === 'SEQUENCE_MEMORY' ? 'Tekan tombol yang menyala. Permainan akan mulai otomatis.' : 'Genggam alat sekali. Permainan akan mulai otomatis.'}</p><div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p><div className="mt-4 flex items-center gap-4"><span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span><div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? selected.device}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">{selected.title}</p></div></div></div></div>
+        {preparation.isPending ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="status"><span className="grid size-16 place-items-center rounded-full bg-brand-soft"><Gamepad2 aria-hidden className="size-8 animate-pulse" /></span><p className="m-0 text-xl font-black">Menyiapkan perangkat…</p></div> : preparation.isError || setupTerminal || setupFailed || createSession.isError ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="alert"><span className="grid size-16 place-items-center rounded-full bg-danger-soft"><AlertTriangle aria-hidden className="size-8 text-danger" /></span><p className="m-0 max-w-md text-lg font-bold">{preparation.isError ? messageOf(preparation.error) : createSession.isError ? messageOf(createSession.error) : setupTerminal ? 'Persiapan perangkat berakhir. Coba lagi.' : 'Perangkat belum terhubung. Coba lagi.'}</p><Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">Coba lagi</Button></div> : <div className="overflow-hidden rounded-lg border-2 border-ink bg-white/95 shadow-[0_7px_0_#d9d4c5]"><div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-5 py-4 sm:px-6"><div><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Pemeriksaan alat</p><p className="mt-1 mb-0 font-bold text-muted">Alat diperiksa otomatis.</p></div><span className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black ${canStart ? 'bg-brand-soft text-success' : 'bg-divider text-muted'}`}>{canStart ? <CheckCircle2 aria-hidden className="size-5" /> : <span aria-hidden className="size-2 animate-pulse rounded-full bg-accent" />}{setupStatusLabel}</span></div><SetupPanel canStart={canStart} fruit={activeFruit} mode={mode} snapshot={setupSnapshot} /><p className="m-0 border-t-2 border-divider bg-white px-5 py-4 text-center font-black text-muted sm:px-6">{canStart ? 'Perangkat siap. Permainan segera dimulai.' : setupSnapshot?.instruction ?? 'Ikuti petunjuk untuk menyelesaikan pemeriksaan.'}</p></div>}
       </div>
     </section>
   );
@@ -485,6 +482,6 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>}</div></section>;
 
   return (
-    <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={fruit} initialCuePlayedRef={initialGoNoGoCuePlayedRef} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
+    <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={activeFruit} initialCuePlayedRef={initialGoNoGoCuePlayedRef} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>
   );
 }

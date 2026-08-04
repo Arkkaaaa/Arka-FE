@@ -4,11 +4,12 @@ import {
   CreatePreparationRequestSchema,
   GameSessionDtoSchema,
   PreparationDtoSchema,
+  PreparationStatusPatchRequestSchema,
   type GameSessionDto,
   type PreparationDto,
 } from '@/schemas';
-import type { z } from 'zod';
-import { apiGet, apiPost, requestBody } from '../config/api-client.ts';
+import { z } from 'zod';
+import { apiGet, apiPatch, apiPost, requestBody } from '../config/api-client.ts';
 import { API_ENDPOINTS } from '../constants/api.ts';
 
 export type CreatePreparationInput = z.infer<typeof CreatePreparationRequestSchema>;
@@ -21,6 +22,18 @@ export function createPreparation(
     API_ENDPOINTS.games.preparations,
     requestBody(CreatePreparationRequestSchema, input),
     PreparationDtoSchema,
+    csrfToken,
+  );
+}
+
+export async function cancelPreparation(
+  preparationId: string,
+  csrfToken: string,
+): Promise<void> {
+  await apiPatch(
+    API_ENDPOINTS.games.preparationStatus(preparationId),
+    requestBody(PreparationStatusPatchRequestSchema, { command: 'CANCEL' }),
+    z.null(),
     csrfToken,
   );
 }

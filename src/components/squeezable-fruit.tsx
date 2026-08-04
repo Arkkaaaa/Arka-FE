@@ -19,7 +19,7 @@ export const FRUIT_DETAILS: Record<FruitVariant, FruitDetails> = {
   TOMATO: { label: 'Tomat', color: '#e54b3f', light: '#ff8175', dark: '#8c2b25', juice: '#db3c32', juiceLight: '#ff8b7f', leaf: '#398c55' },
   BANANA: { label: 'Pisang', color: '#efc842', light: '#ffe987', dark: '#9a7618', juice: '#efcf56', juiceLight: '#fff2a5', leaf: '#4b995d' },
   ORANGE: { label: 'Jeruk', color: '#f3922b', light: '#ffc36b', dark: '#a94d12', juice: '#f5a623', juiceLight: '#ffd566', leaf: '#398c55' },
-  APPLE: { label: 'Apel', color: '#da4c43', light: '#f27a6d', dark: '#852722', juice: '#e36a43', juiceLight: '#ffad74', leaf: '#419259' },
+  APPLE: { label: 'Apel', color: '#da4c43', light: '#f27a6d', dark: '#852722', juice: '#e3ad43', juiceLight: '#ffe0a0', leaf: '#419259' },
   WATERMELON: { label: 'Semangka', color: '#5fa848', light: '#9bd57c', dark: '#235b34', juice: '#e74d58', juiceLight: '#ff8c91', leaf: '#2f7844' },
 };
 
@@ -31,12 +31,6 @@ const TEXTURE_DOTS = [
 
 export function fruitLabel(fruit: FruitVariant): string {
   return FRUIT_DETAILS[fruit].label;
-}
-
-export function randomFruitVariant(): FruitVariant {
-  const random = new Uint32Array(1);
-  crypto.getRandomValues(random);
-  return FRUIT_VARIANTS[random[0]! % FRUIT_VARIANTS.length]!;
 }
 
 interface SqueezableFruitProps {
@@ -51,7 +45,16 @@ function fruitPath(fruit: FruitVariant): string {
   if (fruit === 'BANANA') return 'M150 104 C172 180 242 217 336 184 C363 174 383 154 397 128 C374 194 323 238 252 239 C190 240 139 205 118 157 C109 137 113 119 126 105Z';
   if (fruit === 'APPLE') return 'M259 92 C229 73 184 83 166 119 C141 170 166 225 207 239 C229 247 244 235 260 235 C277 235 291 247 314 239 C355 224 379 168 354 119 C336 84 290 73 259 92Z';
   if (fruit === 'WATERMELON') return 'M139 160 C139 112 188 81 260 81 C332 81 381 112 381 160 C381 208 332 239 260 239 C188 239 139 208 139 160Z';
-  return 'M260 75 C326 75 369 111 369 159 C369 212 326 246 260 246 C194 246 151 212 151 159 C151 111 194 75 260 75Z';
+  return 'M260 78 C326 70 369 111 369 159 C369 212 326 243 260 246 C194 243 151 212 151 159 C151 111 194 70 260 78Z';
+}
+
+function FruitTop({ fruit, leaf }: { fruit: FruitVariant; leaf: string }) {
+  if (fruit === 'BANANA') return <><path d="M132 112 C121 108 114 99 116 89 L119 77 C121 68 133 68 137 77 L141 91 C143 101 139 108 132 112Z" fill="#b7a72d" stroke="#6f5a18" strokeLinejoin="round" strokeWidth="5" /><path d="M120 77 Q128 70 137 78" fill="none" stroke="#4f3520" strokeLinecap="round" strokeWidth="6" /><path d="M390 130 C401 127 409 131 413 138 C407 143 399 142 393 137Z" fill="#69421f" stroke="#4a2f18" strokeLinejoin="round" strokeWidth="3" /></>;
+  if (fruit === 'STRAWBERRY') return <><path d="M260 91 C259 74 265 62 274 52" fill="none" stroke="#347c47" strokeLinecap="round" strokeWidth="8" /><path d="M260 91 L220 112 L242 82 L260 106 L278 82 L300 112Z" fill={leaf} stroke="#285f3b" strokeLinejoin="round" strokeWidth="4" /></>;
+  if (fruit === 'TOMATO') return <><path d="M260 98 C260 81 269 70 277 61" fill="none" stroke="#347c47" strokeLinecap="round" strokeWidth="8" /><path d="M260 99 L223 114 L245 88 L260 108 L276 88 L298 114Z" fill={leaf} stroke="#285f3b" strokeLinejoin="round" strokeWidth="4" /></>;
+  if (fruit === 'ORANGE') return <><path d="M260 81 C261 69 268 62 275 57" fill="none" stroke="#6d411f" strokeLinecap="round" strokeWidth="8" /><path d="M272 61 C286 49 303 51 311 62 C299 74 282 75 272 61Z" fill={leaf} stroke="#285f3b" strokeWidth="4" /></>;
+  if (fruit === 'WATERMELON') return <path d="M364 105 C377 94 386 86 389 74" fill="none" stroke="#68723a" strokeLinecap="round" strokeWidth="9" />;
+  return <><path d="M258 91 C250 72 254 56 265 43" fill="none" stroke="#6d411f" strokeLinecap="round" strokeWidth="11" /><path d="M264 55 C280 35 307 35 322 49 C307 67 282 72 264 55Z" fill={leaf} stroke="#285f3b" strokeWidth="4" /><path d="M270 56 C286 52 300 49 315 48" fill="none" stroke="#9bce86" strokeLinecap="round" strokeWidth="2.5" /></>;
 }
 
 function HandPalm({ side, squeeze, reduced }: { side: 'left' | 'right'; squeeze: number; reduced: boolean }) {
@@ -147,22 +150,21 @@ export function SqueezableFruit({ fruit, squeezePercent, showLabel = true }: Squ
         >
           <path d={shape} fill={`url(#fruitGradient-${id})`} filter={`url(#shadow-${id})`} stroke={details.dark} strokeLinejoin="round" strokeWidth="9" />
           <g clipPath={`url(#fruit-${id})`}>
-            <ellipse cx="221" cy="111" fill="white" opacity="0.22" rx="35" ry="19" transform="rotate(-24 221 111)" />
-            {fruit === 'WATERMELON' && <><path d="M178 79 C205 119 205 203 178 239" fill="none" opacity="0.55" stroke="#28683a" strokeWidth="17" /><path d="M260 76 C280 117 280 203 260 241" fill="none" opacity="0.48" stroke="#28683a" strokeWidth="14" /><path d="M342 83 C317 120 317 202 343 236" fill="none" opacity="0.55" stroke="#28683a" strokeWidth="17" /></>}
-            {fruit !== 'WATERMELON' && fruit !== 'BANANA' && TEXTURE_DOTS.map(([cx, cy, radius], index) => <circle cx={cx} cy={cy} fill={fruit === 'STRAWBERRY' ? '#f9d36a' : details.dark} key={index} opacity={fruit === 'ORANGE' ? 0.28 : fruit === 'STRAWBERRY' ? 0.9 : 0.16} r={fruit === 'STRAWBERRY' ? radius + 1 : radius} />)}
+            {fruit === 'BANANA' ? <path d="M145 116 Q221 190 319 181" fill="none" opacity="0.28" stroke="white" strokeLinecap="round" strokeWidth="10" /> : fruit === 'WATERMELON' ? <ellipse cx="213" cy="111" fill="white" opacity="0.16" rx="44" ry="17" transform="rotate(-12 213 111)" /> : fruit === 'ORANGE' ? <ellipse cx="218" cy="112" fill="white" opacity="0.16" rx="28" ry="17" transform="rotate(-24 218 112)" /> : <ellipse cx="221" cy="111" fill="white" opacity="0.22" rx="35" ry="19" transform="rotate(-24 221 111)" />}
+            {fruit === 'WATERMELON' && <><path d="M157 101 C185 125 186 196 158 218" fill="none" opacity="0.58" stroke="#28683a" strokeWidth="12" /><path d="M199 82 C221 118 220 205 198 237" fill="none" opacity="0.52" stroke="#28683a" strokeWidth="16" /><path d="M260 76 C280 117 280 203 260 241" fill="none" opacity="0.48" stroke="#28683a" strokeWidth="14" /><path d="M321 82 C298 120 299 205 322 237" fill="none" opacity="0.52" stroke="#28683a" strokeWidth="16" /><path d="M363 101 C336 126 335 196 362 218" fill="none" opacity="0.58" stroke="#28683a" strokeWidth="12" /></>}
+            {(fruit === 'STRAWBERRY' || fruit === 'ORANGE') && TEXTURE_DOTS.map(([cx, cy, radius], index) => <circle cx={cx} cy={cy} fill={fruit === 'STRAWBERRY' ? '#f9d36a' : details.dark} key={index} opacity={fruit === 'ORANGE' ? 0.2 : 0.9} r={fruit === 'STRAWBERRY' ? radius + 1 : Math.max(1, radius - 0.4)} />)}
             {fruit === 'ORANGE' && <><circle cx="260" cy="218" fill="#9f4811" opacity="0.55" r="7" /><path d="M251 217 Q260 209 269 217" fill="none" stroke="#f6b95d" strokeWidth="3" /></>}
-            {fruit === 'BANANA' && <><path d="M138 119 Q235 222 376 142" fill="none" opacity="0.42" stroke="#fff2a5" strokeWidth="8" /><path d="M149 138 Q235 215 352 159" fill="none" opacity="0.35" stroke="#9a7618" strokeWidth="5" /></>}
-            {fruit === 'TOMATO' && <><path d="M207 102 Q230 130 260 99 Q290 130 314 102" fill="none" stroke="#9fe077" strokeWidth="8" /><path d="M260 95 L239 117 L260 111 L281 117Z" fill="#398c55" /></>}
-            {fruit === 'STRAWBERRY' && <path d="M210 91 L235 113 L260 88 L285 113 L310 91 L299 126 L221 126Z" fill="#398c55" stroke="#285f3b" strokeWidth="4" />}
-            {fruit === 'APPLE' && <><path d="M236 91 Q260 108 284 91" fill="none" stroke="#7c201d" strokeWidth="5" /><ellipse cx="213" cy="128" fill="#ff9a8d" opacity="0.25" rx="25" ry="16" transform="rotate(-22 213 128)" /></>}
+            {fruit === 'BANANA' && <><path d="M138 119 Q235 222 376 142" fill="none" opacity="0.42" stroke="#fff2a5" strokeWidth="8" /><path d="M143 130 Q235 225 365 151" fill="none" opacity="0.28" stroke="#c39622" strokeWidth="4" /><path d="M149 143 Q235 215 352 159" fill="none" opacity="0.35" stroke="#9a7618" strokeWidth="4" /><path d="M160 158 Q238 216 336 171" fill="none" opacity="0.22" stroke="#fff2a5" strokeWidth="3" /></>}
+            {fruit === 'TOMATO' && <><path d="M190 132 Q220 119 242 139" fill="none" opacity="0.25" stroke="#8c2b25" strokeWidth="4" /><path d="M278 139 Q303 119 333 133" fill="none" opacity="0.25" stroke="#8c2b25" strokeWidth="4" /></>}
+            {fruit === 'APPLE' && <><path d="M236 91 Q260 108 284 91" fill="none" stroke="#7c201d" strokeWidth="5" /><ellipse cx="213" cy="128" fill="#ff9a8d" opacity="0.25" rx="25" ry="16" transform="rotate(-22 213 128)" /><path d="M248 232 Q260 220 272 232" fill="none" opacity="0.55" stroke="#6f211e" strokeWidth="4" /></>}
+            {fruit === 'ORANGE' && <path d="M244 82 Q260 96 276 82" fill="none" opacity="0.45" stroke="#a94d12" strokeWidth="4" />}
+            {fruit === 'STRAWBERRY' && <path d="M214 135 Q260 119 306 135" fill="none" opacity="0.14" stroke="#8f2531" strokeWidth="4" />}
             {fruit === 'WATERMELON' && <><path d="M217 84 Q203 160 220 232" fill="none" opacity="0.3" stroke="#b7e696" strokeWidth="5" /><path d="M302 84 Q318 160 300 232" fill="none" opacity="0.3" stroke="#b7e696" strokeWidth="5" /></>}
-            {[0, 1, 2, 3].map((index) => <path d={`M${218 + index * 21} ${130 + (index % 2) * 14} Q${230 + index * 17} ${143 + index * 6} ${214 + index * 24} ${156 + (index % 2) * 10}`} fill="none" key={index} opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" />)}
+            {fruit === 'BANANA' ? <><path d="M182 142 Q236 181 305 171" fill="none" opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" /><path d="M195 161 Q242 191 290 182" fill="none" opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" /></> : fruit === 'TOMATO' ? <><path d="M260 111 Q238 143 231 181" fill="none" opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" /><path d="M260 111 Q282 143 289 181" fill="none" opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" /></> : fruit === 'WATERMELON' ? <path d="M210 147 Q260 170 310 147" fill="none" opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="4" /> : [0, 1, 2, 3].map((index) => <path d={`M${218 + index * 21} ${130 + (index % 2) * 14} Q${230 + index * 17} ${143 + index * 6} ${214 + index * 24} ${156 + (index % 2) * 10}`} fill="none" key={index} opacity={wrinkleOpacity} stroke={details.dark} strokeLinecap="round" strokeWidth="3" />)}
             <ellipse cx="170" cy="160" fill={details.dark} opacity={0.08 + pressure * 0.25} rx={8 + pressure * 16} ry="47" />
             <ellipse cx="350" cy="160" fill={details.dark} opacity={0.08 + pressure * 0.25} rx={8 + pressure * 16} ry="47" />
           </g>
-          <path d="M258 91 C250 72 254 56 265 43" fill="none" stroke="#6d411f" strokeLinecap="round" strokeWidth="11" />
-          <path d="M264 55 C280 35 307 35 322 49 C307 67 282 72 264 55Z" fill={details.leaf} stroke="#285f3b" strokeWidth="4" />
-          <path d="M270 56 C286 52 300 49 315 48" fill="none" stroke="#9bce86" strokeLinecap="round" strokeWidth="2.5" />
+          <FruitTop fruit={fruit} leaf={details.leaf} />
         </m.g>
         <GripFingers reduced={reduceMotion} side="left" squeeze={squeeze} />
         <GripFingers reduced={reduceMotion} side="right" squeeze={squeeze} />

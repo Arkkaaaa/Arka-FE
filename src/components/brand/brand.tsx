@@ -20,8 +20,8 @@ export function Brand({ compact = false, transparentMark = false }: BrandProps) 
         className="size-11 rounded-full object-cover"
         src={transparentMark ? arkaLogo : arkaMark}
       />
-      <span className="brand-wordmark font-sans text-2xl font-bold tracking-[-0.04em]">
-        Arka
+      <span className="brand-wordmark text-2xl font-bold tracking-[-0.04em]">
+        ARKA
       </span>
       {!compact && (
         <span className="ml-1 hidden text-base font-extrabold tracking-[0.08em] text-muted uppercase sm:block">

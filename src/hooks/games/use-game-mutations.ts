@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import {
+  cancelPreparation,
   createGameSession,
   createPreparation,
   type CreatePreparationInput,
@@ -8,6 +9,12 @@ import {
 export function useCreatePreparationMutation(csrfToken: string) {
   return useMutation({
     mutationFn: (input: CreatePreparationInput) => createPreparation(input, csrfToken),
+  });
+}
+
+export function useCancelPreparationMutation(csrfToken: string) {
+  return useMutation({
+    mutationFn: (preparationId: string) => cancelPreparation(preparationId, csrfToken),
   });
 }
 

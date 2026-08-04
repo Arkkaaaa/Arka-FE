@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   },
   games: {
     preparations: '/api/v1/game-preparations',
+    preparationStatus: (preparationId: string) => `/api/v1/game-preparations/${encodeURIComponent(preparationId)}/status`,
     sessions: '/api/v1/game-sessions',
     session: (sessionId: string) => `/api/v1/game-sessions/${encodeURIComponent(sessionId)}`,
   },

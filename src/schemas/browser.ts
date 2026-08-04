@@ -129,7 +129,7 @@ export const ParticipantDtoSchema = z.object({
 });
 export type ParticipantDto = z.infer<typeof ParticipantDtoSchema>;
 export const ParticipantOverallMetricsSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('MOTOR_GRIP'), averageScore: z.number().int().min(0).max(1000), averagePeakKilograms: z.number().min(0).max(5), averageKilograms: z.number().min(0).max(5), averageContinuousHoldMs: z.number().nonnegative() }),
+  z.object({ mode: z.literal('MOTOR_GRIP'), averageScore: z.number().int().min(0).max(1000), averagePeakKilograms: z.number().min(0).max(120), averageKilograms: z.number().min(0).max(120), averageContinuousHoldMs: z.number().nonnegative() }),
   z.object({ mode: z.literal('GO_NO_GO'), averageScore: z.number().int().min(0).max(1000), averageAccuracyPercent: z.number().min(0).max(100), averageReactionMs: z.number().nonnegative().nullable(), totalTrials: z.number().int().nonnegative(), totalHits: z.number().int().nonnegative(), totalMisses: z.number().int().nonnegative(), totalFalsePositives: z.number().int().nonnegative(), totalCorrectRejections: z.number().int().nonnegative() }),
   z.object({ mode: z.literal('SEQUENCE_MEMORY'), averageScore: z.number().int().min(0).max(1000), averageMemorySpan: z.number().min(0).max(6), averageFirstResponseMs: z.number().nonnegative().nullable(), levelLatencies: z.array(z.object({ level: z.number().int().min(1).max(6), latencyMs: z.number().nonnegative(), samples: z.number().int().positive() })).max(6) }),
 ]);
@@ -262,15 +262,10 @@ export const CreatePreparationRequestSchema = z
     displayName: DisplayNameSchema,
     participantReference: ParticipantReferenceSchema.optional(),
     privacyAcknowledged: z.boolean(),
-    fruitVariant: FruitVariantSchema.optional(),
   })
   .refine((value) => value.mode === 'SEQUENCE_MEMORY' || value.participantReference !== undefined, {
     path: ['participantReference'],
     message: 'Kode peserta fasilitas wajib untuk mode ini.',
-  })
-  .refine((value) => value.mode === 'MOTOR_GRIP' ? value.fruitVariant !== undefined : value.fruitVariant === undefined, {
-    path: ['fruitVariant'],
-    message: 'Buah hanya wajib untuk mode genggaman.',
   });
 export const PreparationStateSchema = z.enum([
   'WAITING_DEVICE',
@@ -286,6 +281,7 @@ export const PreparationDtoSchema = z.object({
   setupId: UuidSchema,
   mode: GameModeSchema,
   displayName: DisplayNameSchema,
+  fruitVariant: FruitVariantSchema.optional(),
   state: PreparationStateSchema,
   expiresAt: IsoDateSchema,
   device: DeviceDtoSchema.pick({ deviceId: true, label: true, readinessCode: true }),
@@ -302,6 +298,7 @@ export const PreparationDtoSchema = z.object({
   canStart: z.boolean(),
 });
 export type PreparationDto = z.infer<typeof PreparationDtoSchema>;
+export const PreparationStatusPatchRequestSchema = z.object({ command: z.literal('CANCEL') });
 
 export const CreateGameSessionRequestSchema = z.object({ preparationId: PublicIdSchema });
 export const CreateGameSessionResponseSchema = z.object({
@@ -316,15 +313,15 @@ export const SessionStatusPatchRequestSchema = z.object({ command: SessionComman
 export const MotorGripSampleSchema = z.object({
   elapsedSecond: z.number().int().min(1).max(30),
   gripPercent: z.number().min(0).max(100),
-  kilograms: z.number().min(0).max(5),
+  kilograms: z.number().min(0).max(120),
 });
 export const MotorGripMetricsSchema = z.object({
   mode: z.literal('MOTOR_GRIP'),
   fruitVariant: FruitVariantSchema.optional().default('ORANGE'),
-  targetKilograms: z.number().positive().max(5).optional().default(1.25),
+  targetKilograms: z.number().positive().max(120).optional().default(1.25),
   peakGripPercent: z.number().min(0).max(100),
-  peakKilograms: z.number().min(0).max(5).optional().default(0),
-  averageKilograms: z.number().min(0).max(5).optional().default(0),
+  peakKilograms: z.number().min(0).max(120).optional().default(0),
+  averageKilograms: z.number().min(0).max(120).optional().default(0),
   continuousHoldMs: z.number().int().min(0).max(5000),
   timeAtOrAboveTargetMs: z.number().int().min(0).max(30000).optional().default(0),
   targetCompleted: z.boolean(),

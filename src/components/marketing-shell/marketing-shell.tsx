@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
-import { arkaLogo } from '../../assets/index.ts';
 import { messageOf } from '../../config/api-client.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useSessionQuery } from '../../hooks/auth/use-session-query.ts';
@@ -175,13 +174,7 @@ export function MarketingFooter() {
     <footer className="mt-auto bg-ink px-5 py-10 text-white sm:px-8">
       <div className="mx-auto grid w-full max-w-[72rem] gap-8 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <Link
-            aria-label="Arka, kembali ke halaman utama"
-            className="inline-flex min-h-12 items-center no-underline"
-            to={ROUTES.landing}
-          >
-            <img alt="Arka" className="h-12 w-auto object-contain" src={arkaLogo} />
-          </Link>
+          <Brand compact transparentMark />
           <p className="mt-4 mb-0 max-w-md text-base leading-7 text-white/80">
             Latihan motorik dan kognitif yang didampingi, jelas, dan mudah diikuti.
           </p>

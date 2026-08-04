@@ -1,6 +1,5 @@
 import {
   Activity,
-  Apple,
   Brain,
   CheckCircle2,
   CircleOff,
@@ -40,7 +39,7 @@ function getStats(metrics: GameMetrics, score: number): ResultStat[] {
   if (metrics.mode === 'MOTOR_GRIP') {
     return [
       { icon: Trophy, label: 'Skor', tone: 'amber', value: score },
-      { icon: Apple, label: 'Buah & target', tone: 'green', value: `${fruitLabel(metrics.fruitVariant)} · ${metrics.targetKilograms.toFixed(2)} kg` },
+      { icon: Target, label: 'Buah & target', tone: 'green', value: `${fruitLabel(metrics.fruitVariant)} · ${metrics.targetKilograms.toFixed(2)} kg` },
       { icon: Gauge, label: 'Beban puncak', tone: 'orange', value: metrics.gripSamples.length > 0 ? `${metrics.peakKilograms.toFixed(2)} kg` : '—' },
       { icon: Activity, label: 'Beban rata-rata', tone: 'blue', value: `${metrics.averageKilograms.toFixed(2)} kg` },
       { icon: Clock3, label: 'Tahanan kontinu', tone: 'purple', value: `${(metrics.continuousHoldMs / 1000).toFixed(1)} dtk` },

@@ -401,14 +401,14 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
   }, [definition.steps.length, onReady]);
 
   return (
-    <section className="mx-auto flex h-full w-full max-w-[88rem] flex-col overflow-hidden" aria-labelledby="tutorial-title">
+    <section className="mx-auto flex h-full min-h-0 w-full max-w-[88rem] flex-col overflow-hidden" aria-labelledby="tutorial-title">
       <audio aria-label={`Panduan suara langkah ${step + 1}`} lang={definition.audioLanguage} preload="auto" ref={audioRef} />
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p></div>
         <div className="flex items-center gap-4"><p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p><Button onClick={() => leaveTutorial(onReady)} variant="quiet">Lewati tutorial</Button></div>
       </header>
 
-      <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+      <div className="grid min-h-0 flex-1 items-center gap-10 overflow-y-auto py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
         <AnimatePresence initial={false} mode="wait">
           <m.div animate={{ opacity: 1, scale: 1, y: 0 }} className="grid w-full place-items-center" exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : -10 }} initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 14 }} key={`${mode}-${step}`} transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}>
             <TutorialVisual fruit={fruit} mode={mode} progress={progress} step={step} />
@@ -431,6 +431,7 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
 
       <footer className="flex flex-wrap items-center justify-between gap-4 pb-2">
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => leaveTutorial(onBack)} variant="quiet"><ChevronLeft aria-hidden className="size-5" />Kembali ke nama peserta</Button>
           <Button onClick={isPlaying ? pauseNarration : () => void playNarration()} variant="secondary">{isPlaying ? <Pause aria-hidden className="size-5" /> : <Play aria-hidden className="size-5" />}{isPlaying ? 'Jeda' : needsGesture ? 'Putar panduan' : 'Putar'}</Button>
           <Button onClick={replayNarration} variant="quiet"><RotateCcw aria-hidden className="size-5" />Ulangi</Button>
         </div>
@@ -439,7 +440,6 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
           {step < definition.steps.length - 1 ? <Button onClick={() => changeStep(step + 1)} variant="secondary">Berikutnya<ChevronRight aria-hidden className="size-5" /></Button> : <Button disabled={!imagesReady || imageError} onClick={() => leaveTutorial(onReady)}>Mulai bermain<ChevronRight aria-hidden className="size-5" /></Button>}
         </div>
       </footer>
-      <button className="mt-4 w-fit border-0 bg-transparent p-0 text-sm font-bold text-muted underline-offset-4 hover:underline" onClick={() => leaveTutorial(onBack)} type="button">Kembali ke nama peserta</button>
     </section>
   );
 }
