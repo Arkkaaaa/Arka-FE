@@ -85,13 +85,18 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === visual?.activeItem);
   const lastCueId = useRef<string | null>(null);
   const previousPhase = useRef<'EXAMPLE' | 'RESPONSE' | 'FEEDBACK' | null>(null);
+  const remainingInputs = visual?.phase === 'RESPONSE'
+    ? Math.max(0, visual.sequenceLength - visual.responseIndex)
+    : visual?.sequenceLength ?? 0;
   const instruction = visual?.feedback === 'ONE_BUTTON'
     ? 'Tekan satu tombol saja.'
     : visual?.feedback === 'REPEAT'
       ? 'Mari lihat urutannya lagi.'
-      : visual?.phase === 'RESPONSE'
-        ? 'Sekarang ikuti urutannya.'
-        : 'Perhatikan urutannya.';
+      : visual?.phase === 'RESPONSE' && visual.responseIndex > 0
+        ? 'Benar, lanjutkan ke tombol berikutnya.'
+        : visual?.phase === 'RESPONSE'
+          ? 'Sekarang ikuti urutannya.'
+          : 'Perhatikan urutannya.';
 
   useEffect(() => {
     if (!visual?.cueId || !activeTile || lastCueId.current === visual.cueId) return;
@@ -110,14 +115,14 @@ function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="flex flex-wrap items-center justify-between gap-3"><p className="m-0 text-2xl font-black">{instruction}</p><span className="rounded-full bg-brand-soft px-4 py-2 text-sm font-black">Sisa kesempatan {visual?.remainingAttempts ?? 3}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><p aria-live="polite" className="m-0 text-2xl font-black">{instruction}</p><div className="flex flex-wrap gap-2">{visual?.phase === 'RESPONSE' && <span className="rounded-full bg-[#eaf3ff] px-4 py-2 text-sm font-black text-[#286aa9]">Sisa tombol {remainingInputs}</span>}<span className="rounded-full bg-brand-soft px-4 py-2 text-sm font-black">Sisa kesempatan {visual?.remainingAttempts ?? 3}</span></div></div>
       <div className="mt-10 grid place-items-center text-center">
         <div className="relative grid size-64 place-items-center sm:size-80">
           {activeTile && <><span aria-hidden className="absolute inset-5 animate-ping rounded-full opacity-20" style={{ backgroundColor: activeTile.color }} /><span aria-hidden className="absolute inset-1 rounded-full opacity-25 blur-2xl" style={{ backgroundColor: activeTile.color }} /></>}
           <m.div animate={{ scale: activeTile ? 1.05 : 1, y: activeTile ? -4 : 0 }} aria-label={buttonLabel} className={`relative size-52 rounded-full border-[12px] border-[#080808] sm:size-64 ${activeTile ? '' : 'saturate-[0.7] brightness-[0.72]'}`} role="img" style={{ background: activeTile ? `radial-gradient(circle at 34% 27%, white 0 4%, ${activeTile.color} 8% 58%, color-mix(in srgb, ${activeTile.color}, black 35%) 100%)` : idleBackground, boxShadow: activeTile ? `0 0 0 7px ${activeTile.color}55,0 0 38px ${activeTile.color},inset 0 -22px 26px rgba(0,0,0,.28),0 10px 0 #050505` : 'inset 0 -22px 26px rgba(0,0,0,.28),0 10px 0 #050505' }} transition={{ duration: 0.14 }}><span aria-hidden className="absolute inset-x-10 top-5 h-8 rotate-[-12deg] rounded-full bg-white/28 blur-[1px]" /></m.div>
         </div>
         <p className="mt-2 mb-0 text-2xl font-black">{activeTile ? activeTile.label : visual?.phase === 'RESPONSE' ? 'Tekan tombol fisik sesuai urutan' : 'Bersiap melihat warna'}</p>
-        <p className="mt-2 mb-0 max-w-md font-bold text-muted">Satu tombol akan menyala bergantian dalam empat warna.</p>
+        <p className="mt-2 mb-0 max-w-md font-bold text-muted">{visual?.phase === 'RESPONSE' ? `Lepaskan lalu tekan tombol ${Math.min(visual.responseIndex + 1, visual.sequenceLength)} dari ${visual.sequenceLength}.` : 'Satu tombol akan menyala bergantian dalam empat warna.'}</p>
       </div>
     </div>
   );
@@ -284,13 +289,13 @@ function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, initia
   return <SequenceBoard snapshot={snapshot} />;
 }
 
-function GameResult({ snapshot, onReplay, result = snapshot.result }: { snapshot: SessionSnapshot; onReplay: () => void; result?: SessionSnapshot['result'] }) {
+function GameResult({ displayName, onReplay, result }: { displayName: string; onReplay: () => void; result?: SessionSnapshot['result'] }) {
   if (!result) return null;
   const metrics = result.metrics;
   return (
-    <section aria-labelledby="result-title" className="grid h-full min-h-0 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden">
-      <header><p className="landing-eyebrow">Sesi tersimpan</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="result-title">Hasil sesi {snapshot.displayName}</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil permainan ini bukan diagnosis atau rekomendasi terapi.</p></header>
-      <div className="min-h-0 overflow-y-auto pr-1"><ResultStats metrics={metrics} score={result.score} /><GameResultChart metrics={metrics} /><div className="mt-3"><AiSummaryPanels summary={result.aiSummary} /></div></div>
+    <section aria-labelledby="result-title" className="mx-auto grid w-full max-w-[78rem] gap-3 py-5">
+      <header><p className="landing-eyebrow">Sesi tersimpan</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="result-title">Hasil sesi {displayName}</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil permainan ini bukan diagnosis atau rekomendasi terapi.</p></header>
+      <div><ResultStats metrics={metrics} score={result.score} /><GameResultChart metrics={metrics} /><div className="mt-3"><AiSummaryPanels summary={result.aiSummary} /></div></div>
       <div className="flex flex-wrap gap-2"><Button onClick={onReplay}>Main lagi</Button><Link className={buttonClassName('secondary')} to={ROUTES.progressBoard}>Lihat Progress Board</Link><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
     </section>
   );
@@ -302,7 +307,7 @@ function SetupPanel({ mode, snapshot, canStart, fruit }: { mode: GameMode; snaps
   return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Alat siap' : snapshot?.instruction ?? 'Genggam alat satu kali.'}</h3>{canStart && <p className="mt-3 mb-0 text-lg font-bold text-muted">Permainan segera dimulai.</p>}</div></div>;
 }
 
-export type GameFlowStage = 'participant' | 'tutorial' | 'setup' | 'session';
+export type GameFlowStage = 'participant' | 'tutorial' | 'setup' | 'session' | 'result';
 
 interface GameFlowProps {
   csrfToken: string;
@@ -344,7 +349,10 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     : preparation.data?.fruitVariant ?? fruit;
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
   const persistedStatus = persistedSession.data?.status;
-  const status = sessionSnapshot?.status ?? (persistedStatus && persistedStatus !== 'BINDING' ? persistedStatus : createSession.data?.status ?? 'BINDING');
+  const durableTerminal = persistedStatus && ['ABORTED', 'INTERRUPTED', 'COMPLETED', 'SAVING', 'SAVED', 'SAVE_FAILED'].includes(persistedStatus);
+  const status = durableTerminal
+    ? persistedStatus
+    : sessionSnapshot?.status ?? (persistedStatus && persistedStatus !== 'BINDING' ? persistedStatus : createSession.data?.status ?? 'BINDING');
   const setupTerminal = setupSnapshot?.state === 'CANCELLED' || setupSnapshot?.state === 'EXPIRED';
   const setupFailed = setupSocket.status === 'FAILED' || setupSocket.protocolError !== null;
   const setupStatusLabel = createSession.isPending
@@ -397,6 +405,9 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   }, [createSession, preparation, setStage]);
 
   useEffect(() => { if (stage === 'setup' && canStart && !createSession.isError) void startSession(); }, [canStart, createSession.isError, stage, startSession]);
+  useEffect(() => {
+    if (sessionSnapshot?.status === 'SAVED' && stage !== 'result') setStage('result');
+  }, [sessionSnapshot?.status, setStage, stage]);
 
   async function backToTutorial() {
     if (createSession.isPending || cancelPreparation.isPending || sessionStartingRef.current) return;
@@ -476,7 +487,8 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     </section>
   );
 
-  if (sessionSnapshot?.status === 'SAVED') return <GameResult onReplay={reset} result={persistedSession.data?.result ?? sessionSnapshot.result} snapshot={sessionSnapshot} />;
+  const savedResult = persistedSession.data?.result ?? sessionSnapshot?.result;
+  if (status === 'SAVED' && savedResult) return <GameResult displayName={sessionSnapshot?.displayName ?? participantName} onReplay={reset} result={savedResult} />;
   if (['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(status)) return <section className="mx-auto grid min-h-[32rem] max-w-2xl place-items-center text-center" aria-labelledby="terminal-title"><div><AlertTriangle aria-hidden className="mx-auto size-12 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">{status === 'ABORTED' ? 'Sesi diakhiri' : status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}</h1><p className="mt-4 mb-0 text-lg leading-8 text-muted">{sessionSnapshot?.message ?? 'Sesi berhenti. Pastikan perangkat tetap terhubung lalu coba lagi.'}</p><Button className="mt-7" onClick={reset}>Kembali ke awal</Button></div></section>;
   if (status === 'COMPLETED' || status === 'SAVING') return <section className="grid min-h-96 place-items-center text-center" aria-live="polite"><div><CheckCircle2 aria-hidden className="mx-auto size-12 text-success" /><h1 className="mt-5 mb-0 text-4xl font-black">Permainan selesai</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">Menyimpan hasil…</p></div></section>;
   if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>}</div></section>;

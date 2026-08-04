@@ -13,7 +13,7 @@ export function GameModePage() {
   const [stage, setStage] = useState<GameFlowStage>('participant');
 
   if (!mode) return <Navigate replace to={ROUTES.dashboard} />;
-  const immersive = stage === 'tutorial' || stage === 'setup' || stage === 'session';
+  const immersive = stage === 'tutorial' || stage === 'setup' || stage === 'session' || stage === 'result';
   const viewportStage = stage === 'tutorial' || stage === 'session';
 
   return (
