@@ -53,6 +53,10 @@ export function playCountdownTone(value: number): void {
   playSequenceTone(value === 1 ? 784 : 587, 140);
 }
 
+export function playAttentionTick(): void {
+  playSequenceTone(660, 70);
+}
+
 export function playStartTone(): void {
   playSequenceTone(1_046, 280);
 }

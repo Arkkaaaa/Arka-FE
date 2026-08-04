@@ -18,6 +18,7 @@ import { useSessionSocket, useSetupSocket } from '../../hooks/realtime/use-realt
 import {
   GameParticipantEntry,
   GameTutorial,
+  playAttentionTick,
   playCountdownTone,
   playSequenceTone,
   playStartTone,
@@ -228,6 +229,7 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
 function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: MutableRefObject<boolean>; snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const stimulus = visual?.stimulus as GoNoGoStimulus | null | undefined;
+  const attentionTickRef = useRef<number | null>(null);
   const asset = stimulus && visual?.assetIndex !== null && visual?.assetIndex !== undefined
     ? goNoGoStimulusAssetAt(stimulus, visual.assetIndex)
     : null;
@@ -241,6 +243,17 @@ function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: M
     initialCuePlayedRef.current = true;
     playTurnCue();
   }, [visual?.phase]);
+
+  useEffect(() => {
+    if (visual?.phase !== 'STIMULUS') {
+      attentionTickRef.current = null;
+      return;
+    }
+    const second = Math.floor((visual.activeElapsedMs ?? 0) / 1_000);
+    if (attentionTickRef.current === second) return;
+    attentionTickRef.current = second;
+    playAttentionTick();
+  }, [visual?.activeElapsedMs, visual?.phase]);
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -271,13 +284,22 @@ function GameResult({ snapshot, onReplay, result = snapshot.result }: { snapshot
 }
 
 function SetupPanel({ mode, snapshot, canStart, fruit }: { mode: GameMode; snapshot: SetupSnapshot | null; canStart: boolean; fruit: FruitVariant }) {
+  const practiceTicking = mode === 'GO_NO_GO' && snapshot?.state === 'PRACTICING' && snapshot.practiceStimulus !== undefined && snapshot.practiceFeedback !== 'CORRECT';
+
+  useEffect(() => {
+    if (!practiceTicking) return;
+    playAttentionTick();
+    const timer = window.setInterval(playAttentionTick, 1_000);
+    return () => window.clearInterval(timer);
+  }, [practiceTicking]);
+
   if (mode === 'SEQUENCE_MEMORY') return <div className="bg-gradient-to-br from-[#22221f] via-[#11110f] to-[#28261e] p-6 sm:p-8"><div className="mx-auto grid max-w-lg grid-cols-2 gap-5 sm:gap-7">{SEQUENCE_TILES.map((tile) => { const checked = snapshot?.checkedButton === tile.code; return <div className="grid place-items-center gap-3 rounded-md border border-white/10 bg-white/5 p-4" key={tile.code}><span className="relative block aspect-square w-full max-w-24">{checked && <span className="absolute inset-1 animate-ping rounded-full opacity-40" style={{ backgroundColor: tile.color }} />}<span className={`relative block size-full rounded-full border-8 border-[#080808] transition ${checked ? 'scale-105 brightness-125' : 'brightness-75'}`} style={{ backgroundColor: tile.color }} /></span><span className="text-center"><strong className="block text-base text-white">{tile.label}</strong><span className="mt-1 block text-xs font-bold text-white/60">{tile.icon}</span></span></div>; })}</div></div>;
   if (mode === 'GO_NO_GO') {
     const stimulus = snapshot?.practiceStimulus as GoNoGoStimulus | undefined;
     const asset = stimulus ? goNoGoStimulusAsset(stimulus, 'practice') : null;
-    return <div className="grid min-h-80 place-items-center bg-[#eaf3ff] p-8 text-center"><div className="w-full">{asset ? <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-52 rounded-md object-contain shadow-[0_4px_0_#d9d4c5]" src={asset.src} /> : <span className="mx-auto grid size-20 place-items-center rounded-full bg-white"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span>}<h3 className="mt-5 mb-0 text-4xl font-black">{snapshot?.state === 'PRACTICING' ? stimulus ? GO_NO_GO_STIMULUS_LABELS[stimulus] : 'Latihan' : canStart ? 'Alat siap' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{snapshot?.practiceFeedback === 'CORRECT' ? 'Bagus, lanjutkan.' : snapshot?.practiceFeedback === 'TRY_AGAIN' ? 'Coba lagi dengan tenang.' : snapshot?.practiceFeedback === 'WAIT' ? 'Tunggu gambar berikutnya.' : snapshot?.state === 'PRACTICING' ? 'Genggam hanya saat Wayang muncul.' : 'Ikuti urutan lepas lalu genggam.'}</p></div></div>;
+    return <div className="grid min-h-80 place-items-center bg-white p-8 text-center"><div className="w-full">{asset ? <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-52 rounded-md object-contain shadow-[0_4px_0_#d9d4c5]" src={asset.src} /> : <span className="mx-auto grid size-20 place-items-center rounded-full bg-white"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span>}<h3 className="mt-5 mb-0 text-4xl font-black">{snapshot?.state === 'PRACTICING' ? stimulus ? GO_NO_GO_STIMULUS_LABELS[stimulus] : 'Latihan' : canStart ? 'Alat siap' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{snapshot?.practiceFeedback === 'CORRECT' ? 'Bagus, lanjutkan.' : snapshot?.practiceFeedback === 'TRY_AGAIN' ? 'Coba lagi dengan tenang.' : snapshot?.practiceFeedback === 'WAIT' ? 'Tunggu gambar berikutnya.' : snapshot?.state === 'PRACTICING' ? 'Genggam sekali saat Wayang muncul.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
   }
-  return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Kekuatan tercatat' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{canStart ? 'Alat siap digunakan.' : 'Ikuti urutan lepas lalu genggam agar kalibrasi terbaca.'}</p></div></div>;
+  return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Kekuatan tercatat' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{canStart ? 'Permainan segera dimulai.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
 }
 
 export type GameFlowStage = 'participant' | 'tutorial' | 'setup' | 'session';
@@ -437,7 +459,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   if (stage === 'setup') return (
     <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-[78rem] flex-col justify-center py-20 sm:py-16" aria-labelledby="setup-title">
       <Button className="absolute top-3 left-0" disabled={createSession.isPending || sessionStartingRef.current} onClick={backToTutorial} variant="quiet"><ArrowLeft aria-hidden className="size-5" />Kembali</Button>
-      <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16"><div><p className="landing-eyebrow">Persiapan untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan {selected.device.toLowerCase()}</h1><p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">{mode === 'MOTOR_GRIP' ? 'Kalibrasi kekuatan dilakukan agar latihan tetap nyaman.' : mode === 'GO_NO_GO' ? 'Atur sensitivitas genggaman, lalu selesaikan latihan singkat.' : 'Empat tombol diperiksa sebelum permainan dimulai.'}</p><div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p><div className="mt-4 flex items-center gap-4"><span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span><div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? selected.device}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">{selected.title}</p></div></div></div></div>
+      <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16"><div><p className="landing-eyebrow">Persiapan untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="setup-title">Siapkan {selected.device.toLowerCase()}</h1><p className="mt-4 mb-0 max-w-xl text-lg leading-8 text-muted">{mode === 'SEQUENCE_MEMORY' ? 'Tekan tombol yang menyala. Permainan akan mulai otomatis.' : 'Ikuti petunjuk singkat. Permainan akan mulai otomatis.'}</p><div className="mt-7 rounded-md border-2 border-divider bg-white/90 p-5"><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Perangkat yang digunakan</p><div className="mt-4 flex items-center gap-4"><span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft"><Gamepad2 className="size-6" /></span><div><h2 className="m-0 text-xl font-black">{preparation.data?.device.label ?? selected.device}</h2><p className="mt-1 mb-0 text-sm font-bold text-muted">{selected.title}</p></div></div></div></div>
         {preparation.isPending ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="status"><span className="grid size-16 place-items-center rounded-full bg-brand-soft"><Gamepad2 aria-hidden className="size-8 animate-pulse" /></span><p className="m-0 text-xl font-black">Menyiapkan perangkat…</p></div> : preparation.isError || setupTerminal || setupFailed || createSession.isError ? <div className="flex min-h-[30rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-divider bg-white/90 p-8 text-center text-muted shadow-[0_6px_0_#e7e3d7]" role="alert"><span className="grid size-16 place-items-center rounded-full bg-danger-soft"><AlertTriangle aria-hidden className="size-8 text-danger" /></span><p className="m-0 max-w-md text-lg font-bold">{preparation.isError ? messageOf(preparation.error) : createSession.isError ? messageOf(createSession.error) : setupTerminal ? 'Persiapan perangkat berakhir. Coba lagi.' : 'Perangkat belum terhubung. Coba lagi.'}</p><Button disabled={preparation.isPending || createSession.isPending} onClick={retrySetup} variant="secondary">Coba lagi</Button></div> : <div className="overflow-hidden rounded-lg border-2 border-ink bg-white/95 shadow-[0_7px_0_#d9d4c5]"><div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-5 py-4 sm:px-6"><div><p className="m-0 text-sm font-black tracking-[0.08em] text-muted uppercase">Pemeriksaan alat</p><p className="mt-1 mb-0 font-bold text-muted">{setupSnapshot?.instruction ?? 'Menghubungkan perangkat.'}</p></div><span className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black ${canStart ? 'bg-brand-soft text-success' : 'bg-divider text-muted'}`}>{canStart ? <CheckCircle2 aria-hidden className="size-5" /> : <span aria-hidden className="size-2 animate-pulse rounded-full bg-accent" />}{setupStatusLabel}</span></div><SetupPanel canStart={canStart} fruit={fruit} mode={mode} snapshot={setupSnapshot} /><p className="m-0 border-t-2 border-divider bg-white px-5 py-4 text-center font-black text-muted sm:px-6">{canStart ? 'Perangkat siap. Permainan segera dimulai.' : setupSnapshot?.instruction ?? 'Ikuti petunjuk untuk menyelesaikan pemeriksaan.'}</p></div>}
       </div>
     </section>
