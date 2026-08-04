@@ -10,7 +10,7 @@ import { ResultStats } from '../../components/result-stats.tsx';
 import { fruitLabel, randomFruitVariant, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
-import { GO_NO_GO_STIMULUS_LABELS, goNoGoStimulusAsset, goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
+import { goNoGoStimulusAsset, goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { useCreateGameSessionMutation, useCreatePreparationMutation } from '../../hooks/games/use-game-mutations.ts';
 import { useGameSessionQuery } from '../../hooks/games/use-game-session-query.ts';
@@ -257,9 +257,9 @@ function GoNoGoBoard({ initialCuePlayedRef, snapshot }: { initialCuePlayedRef: M
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <SessionCountdown remainingMs={visual?.remainingMs ?? 180_000} totalMs={180_000} />
+      {visual?.phase === 'STIMULUS' ? <SessionCountdown remainingMs={visual.remainingMs} totalMs={180_000} /> : <p className="m-0 text-center text-lg font-black text-muted">Perhatikan gambar</p>}
       <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
-        {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-72 rounded-md object-contain" key={`${visual?.trialNumber}-${stimulus}-${visual?.assetIndex}`} src={asset.src} />}
+        {asset && <img alt="" className="mx-auto aspect-[4/5] w-full max-w-72 rounded-md object-contain" key={`${visual?.trialNumber}-${stimulus}-${visual?.assetIndex}`} src={asset.src} />}
       </div>
     </div>
   );
@@ -298,7 +298,7 @@ function SetupPanel({ mode, snapshot, canStart, fruit }: { mode: GameMode; snaps
     const stimulus = snapshot?.practiceStimulus as GoNoGoStimulus | undefined;
     const asset = stimulus ? goNoGoStimulusAsset(stimulus, 'practice') : null;
     const practiceComplete = snapshot?.state === 'PRACTICING' && snapshot.practiceFeedback === 'CORRECT' && !stimulus;
-    return <div className="grid min-h-80 place-items-center bg-white p-8 text-center"><div className="w-full">{asset ? <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-52 rounded-md object-contain shadow-[0_4px_0_#d9d4c5]" src={asset.src} /> : <span className="mx-auto grid size-20 place-items-center rounded-full bg-white"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span>}<h3 className="mt-5 mb-0 text-4xl font-black">{practiceComplete || canStart ? 'Alat siap' : snapshot?.state === 'PRACTICING' ? stimulus ? GO_NO_GO_STIMULUS_LABELS[stimulus] : 'Latihan' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{practiceComplete || canStart ? 'Permainan segera dimulai.' : snapshot?.practiceFeedback === 'TRY_AGAIN' ? 'Coba lagi dengan tenang.' : snapshot?.practiceFeedback === 'WAIT' ? 'Tunggu gambar berikutnya.' : snapshot?.state === 'PRACTICING' ? 'Genggam sekali saat Wayang muncul.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
+    return <div className="grid min-h-80 place-items-center bg-white p-8 text-center"><div className="w-full">{asset ? <img alt="" className="mx-auto aspect-[4/5] w-full max-w-52 rounded-md object-contain shadow-[0_4px_0_#d9d4c5]" src={asset.src} /> : <span className="mx-auto grid size-20 place-items-center rounded-full bg-white"><Hand aria-hidden className="size-10 text-[#3978bd]" /></span>}<h3 className="mt-5 mb-0 text-4xl font-black">{practiceComplete || canStart ? 'Alat siap' : snapshot?.state === 'PRACTICING' ? stimulus ? 'Perhatikan gambar' : 'Latihan' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{practiceComplete || canStart ? 'Permainan segera dimulai.' : snapshot?.practiceFeedback === 'TRY_AGAIN' ? 'Coba lagi dengan tenang.' : snapshot?.practiceFeedback === 'WAIT' ? 'Tunggu gambar berikutnya.' : snapshot?.state === 'PRACTICING' ? 'Genggam sekali saat Wayang muncul.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
   }
   return <div className="grid min-h-80 place-items-center p-8 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={canStart ? 45 : 10} /><h3 className="mt-5 mb-0 text-4xl font-black">{canStart ? 'Kekuatan tercatat' : snapshot?.instruction ?? 'Lepaskan alat terlebih dahulu.'}</h3><p className="mt-3 mb-0 text-lg font-bold text-muted">{canStart ? 'Permainan segera dimulai.' : 'Ikuti petunjuk di atas.'}</p></div></div>;
 }
