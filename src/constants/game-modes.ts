@@ -11,8 +11,8 @@ import {
 export const GAME_MODES = [
   {
     mode: 'MOTOR_GRIP',
-    title: 'Peras Buah',
-    detail: 'Latihan menggenggam dan mempertahankan genggaman yang nyaman.',
+    title: 'Peras Jeruk',
+    detail: 'Peras jeruk selama 30 detik. Semakin kuat genggaman, semakin banyak jus dan poin.',
     device: 'Genggam alat',
     capability: 'FSR',
     illustration: athletesTrainingIllustration,

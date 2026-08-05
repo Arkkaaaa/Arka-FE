@@ -43,7 +43,7 @@ const GAMES = [
   {
     emoji: tangerineEmoji,
     illustration: athletesTrainingIllustration,
-    title: 'Peras Buah',
+    title: 'Peras Jeruk',
     detail: 'Genggam alat dan tahan dengan nyaman.',
   },
   {

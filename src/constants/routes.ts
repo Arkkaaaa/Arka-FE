@@ -29,6 +29,8 @@ export const ROUTES = {
   participant: (participantId: string) => `/participants/${encodeURIComponent(participantId)}`,
   participantHistory: (participantId: string) =>
     `/participants/${encodeURIComponent(participantId)}/history`,
+  participantReport: (participantId: string) =>
+    `/participants/${encodeURIComponent(participantId)}/report`,
   participantEntry: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/participant`,
   tutorial: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/tutorial`,
   setup: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/setup`,
@@ -43,5 +45,6 @@ export const ROUTE_PATTERNS = {
   session: '/sessions/:sessionId',
   result: '/results/:sessionId',
   participantHistory: '/participants/:participantId/history',
+  participantReport: '/participants/:participantId/report',
   participant: '/participants/:participantId',
 } as const;

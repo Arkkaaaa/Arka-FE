@@ -19,7 +19,7 @@ export interface TutorialDefinition {
 export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
   MOTOR_GRIP: {
     audioLanguage: TUTORIAL_AUDIO_LANGUAGE,
-    instruction: 'Genggam alat untuk memeras buah di layar.',
+    instruction: 'Genggam alat untuk memeras jeruk selama 30 detik.',
     steps: [
       {
         title: 'Pegang alat',
@@ -31,14 +31,14 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
       {
         title: 'Genggam alat',
         instruction: 'Sekarang, genggam alat dengan tangan Anda.',
-        visual: 'Buah mulai terperas saat alat digenggam.',
+        visual: 'Jeruk mulai terperas saat alat digenggam.',
         caption: 'Gunakan kekuatan yang tetap terasa nyaman.',
         audioSrc: '/tutorial/step-mode1/step2.m4a',
       },
       {
         title: 'Peras buah',
         instruction: 'Lihat buah di layar. Genggam alat untuk memeras buah.',
-        visual: 'Buah mengerut dan indikator kekuatan bertambah.',
+        visual: 'Jeruk mengerut dan indikator kekuatan bertambah.',
         caption: 'Semakin kuat genggaman, semakin banyak buah terperas.',
         audioSrc: '/tutorial/step-mode1/step3.m4a',
       },
@@ -52,14 +52,14 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
       {
         title: 'Lepaskan perlahan',
         instruction: 'Setelah selesai, lepaskan genggaman secara perlahan.',
-        visual: 'Buah dan tangan kembali rileks.',
+        visual: 'Jeruk dan tangan kembali rileks.',
         caption: 'Istirahatkan tangan sejenak.',
         audioSrc: '/tutorial/step-mode1/step5.m4a',
       },
       {
         title: 'Siap bermain',
         instruction: 'Bagus. Anda sudah siap. Mari kita mulai bermain.',
-        visual: 'Buah siap diperas dalam permainan.',
+        visual: 'Jeruk siap diperas dalam permainan.',
         caption: 'Latihan tutorial belum dihitung.',
         audioSrc: '/tutorial/step-mode1/step6.m4a',
       },

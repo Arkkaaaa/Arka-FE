@@ -7,7 +7,7 @@ import { Button, buttonClassName } from '../../components/index.ts';
 import { AiSummaryPanels } from '../../components/ai-summary-panels.tsx';
 import { GameResultChart } from '../../components/game-result-charts.tsx';
 import { ResultStats } from '../../components/result-stats.tsx';
-import { fruitLabel, SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
+import { SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
 import { goNoGoStimulusAssetAt, goNoGoTargetAudioUrl, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
@@ -60,13 +60,15 @@ function GripLineChart({ samples, compact = false }: { samples: readonly GripSam
   const bottom = 34;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const points = samples.map((sample) => ({ ...sample, x: left + ((sample.elapsedSecond - 1) / 29) * plotWidth, y: top + plotHeight - (sample.kilograms / 120) * plotHeight }));
+  const maxKilograms = Math.max(5, Math.ceil(Math.max(0, ...samples.map((sample) => sample.kilograms))));
+  const ticks = Array.from({ length: 6 }, (_, index) => maxKilograms * index / 5);
+  const points = samples.map((sample) => ({ ...sample, x: left + ((sample.elapsedSecond - 1) / 29) * plotWidth, y: top + plotHeight - (sample.kilograms / maxKilograms) * plotHeight }));
   const line = points.map((point) => `${point.x},${point.y}`).join(' ');
   return (
     <>
       <svg aria-label="Grafik kekuatan genggaman dalam kilogram setiap detik" className="h-auto w-full" role="img" viewBox={`0 0 ${width} ${height}`}>
-        {[0, 24, 48, 72, 96, 120].map((kg) => {
-          const y = top + plotHeight - (kg / 120) * plotHeight;
+        {ticks.map((kg) => {
+          const y = top + plotHeight - (kg / maxKilograms) * plotHeight;
           return <g key={kg}><line stroke="#e7e3d7" strokeWidth="1.5" x1={left} x2={left + plotWidth} y1={y} y2={y} />{!compact && <text fill="#625f54" fontSize="13" fontWeight="700" textAnchor="end" x={left - 8} y={y + 4}>{kg} kg</text>}</g>;
         })}
         {line && <polyline fill="none" points={line} stroke="#d67b1f" strokeLinecap="round" strokeLinejoin="round" strokeWidth={compact ? 5 : 4} />}
@@ -180,10 +182,13 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
   const visual = snapshot.visual?.mode === 'MOTOR_GRIP' ? snapshot.visual : null;
   const encouragementState = encouragementStateRef.current;
   const [encouragement, setEncouragement] = useState('Genggam dengan nyaman, lalu pertahankan.');
-  const grip = Math.round(visual?.gripPercent ?? 0);
   const kilograms = visual?.kilograms ?? 0;
-  const hold = Math.min(((visual?.holdProgressMs ?? 0) / 5000) * 100, 100);
+  const grip = Math.round(Math.min(100, kilograms / 5 * 100));
+  const fillLabel = kilograms < 2 ? '¼ gelas' : kilograms < 3 ? '½ gelas' : kilograms < 4 ? '¾ gelas' : kilograms <= 5 ? 'Penuh' : 'Luber';
   const samples = visual?.gripSamples ?? [];
+  const averageKilograms = samples.length > 0 ? samples.reduce((sum, sample) => sum + sample.kilograms, 0) / samples.length : kilograms;
+  const peakKilograms = Math.max(kilograms, ...samples.map((sample) => sample.kilograms));
+  const estimatedScore = Math.round((Math.min(1, averageKilograms / 5) * 0.7 + Math.min(1, peakKilograms / 5) * 0.3) * 1000);
 
   function triggerCue(audio: HTMLAudioElement, cues: readonly EncouragementCue[]) {
     const cue = randomCue(cues, encouragementState.lastCueSrc);
@@ -221,10 +226,10 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="grid grid-cols-2 gap-3"><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Target {fruitLabel(visual?.fruitVariant ?? fruit)}</span><strong className="text-3xl tabular-nums text-[#a94f12]">{(visual?.targetKilograms ?? 1.25).toFixed(2)} kg</strong></div><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Beban saat ini</span><strong className="text-3xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="grid grid-cols-2 gap-3"><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Isi gelas</span><strong className="text-3xl text-[#a94f12]">{fillLabel}</strong></div><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Beban saat ini</span><strong className="text-3xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div></div>
       <div className="mt-5 grid items-stretch gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="grid min-h-[28rem] place-items-center p-6 text-center"><div><SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
-        <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="relative mt-4 h-4 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span className="absolute top-1/2 right-0 size-7 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Target tahan</span><strong className="text-2xl">{((visual?.holdProgressMs ?? 0) / 1000).toFixed(1)} / 5.0 dtk</strong></div><div aria-hidden className="mt-3 h-5 overflow-hidden rounded-full bg-divider"><div className="h-full origin-left bg-[#399267] transition-transform duration-100" style={{ transform: `scaleX(${hold / 100})` }} /></div></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
+        <div className="grid min-h-[28rem] place-items-center p-6 text-center"><div><SqueezableFruit fruit="ORANGE" kilograms={kilograms} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
+        <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="relative mt-4 h-4 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span className="absolute top-1/2 right-0 size-7 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Perkiraan poin kekuatan</span><strong className="text-3xl">{estimatedScore}</strong></div><p className="mt-2 mb-0 text-sm font-bold text-muted">Dihitung dari kekuatan rata-rata dan puncak selama 30 detik.</p></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
       </div>
     </div>
   );
@@ -345,7 +350,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   const [stage, setStageState] = useState<GameFlowStage>('participant');
   const setStage = useCallback((next: GameFlowStage) => { setStageState(next); onStageChange(next); }, [onStageChange]);
   const [participant, setParticipant] = useState<GameParticipantIdentity | null>(null);
-  const [fruit, setFruit] = useState<FruitVariant>('STRAWBERRY');
+  const [fruit, setFruit] = useState<FruitVariant>('ORANGE');
   const participantName = participant?.displayName ?? '';
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
@@ -500,10 +505,10 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   function reset() {
     encouragementAudioRef.current?.pause();
     encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
-    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; setSessionId(null); setFruit('STRAWBERRY'); setStage('participant');
+    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; setSessionId(null); setFruit('ORANGE'); setStage('participant');
   }
 
-  if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit('STRAWBERRY'); setStage('tutorial'); }} />;
+  if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit('ORANGE'); setStage('tutorial'); }} />;
   if (stage === 'tutorial') return <GameTutorial fruit={fruit} mode={mode} onBack={() => setStage('participant')} onReady={() => { resumeGameAudio(); startPreparation(); }} participantName={participantName} />;
 
   if (stage === 'setup') return (

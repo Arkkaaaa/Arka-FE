@@ -11,6 +11,7 @@ const AUDIENCES: readonly { id: Audience; label: string }[] = [
 export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
   const [audience, setAudience] = useState<Audience>('participant');
   const tabsId = useId();
+  if (summary.status !== 'READY') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-white p-5 text-center font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan sedang disiapkan.' : 'Ringkasan belum tersedia untuk sesi ini.'}</section>;
   const active = summary[audience];
 
   return (
@@ -38,7 +39,6 @@ export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
         <p className="m-0 text-base leading-7 font-bold">{active.summaryText}</p>
         {active.observations.length > 0 && <ul className="mt-3 mb-0 grid gap-2 pl-5 text-sm leading-6 text-muted">{active.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>}
       </div>
-      {summary.status !== 'READY' && <p aria-live="polite" className="m-0 border-t border-divider bg-canvas/60 px-4 py-3 text-center text-xs font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan AI sedang diproses.' : 'Ringkasan otomatis berbasis statistik sesi.'}</p>}
     </section>
   );
 }

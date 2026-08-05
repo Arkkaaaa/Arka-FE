@@ -36,7 +36,24 @@ export function fruitLabel(fruit: FruitVariant): string {
 interface SqueezableFruitProps {
   fruit: FruitVariant;
   squeezePercent: number;
+  kilograms?: number;
   showLabel?: boolean;
+}
+
+export function FruitIcon({ fruit, className = 'size-12' }: { fruit: FruitVariant; className?: string }) {
+  const rawId = useId();
+  const id = rawId.replace(/:/g, '');
+  const details = FRUIT_DETAILS[fruit];
+  const shape = fruitPath(fruit);
+  return (
+    <svg aria-label={details.label} className={className} role="img" viewBox="100 30 320 240">
+      <defs><linearGradient id={`fruitIcon-${id}`} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor={details.light} /><stop offset="0.48" stopColor={details.color} /><stop offset="1" stopColor={details.dark} /></linearGradient><clipPath id={`fruitIconClip-${id}`}><path d={shape} /></clipPath><filter id={`fruitIconShadow-${id}`} height="150%" width="150%" x="-25%" y="-25%"><feDropShadow dx="0" dy="7" floodColor="#171711" floodOpacity="0.2" stdDeviation="5" /></filter></defs>
+      <ellipse cx="260" cy="246" fill="#171711" opacity="0.12" rx="92" ry="11" />
+      <path d={shape} fill={`url(#fruitIcon-${id})`} filter={`url(#fruitIconShadow-${id})`} stroke={details.dark} strokeLinejoin="round" strokeWidth="9" />
+      <g clipPath={`url(#fruitIconClip-${id})`}><ellipse cx="213" cy="112" fill="white" opacity="0.2" rx="34" ry="19" transform="rotate(-24 213 112)" />{fruit === 'ORANGE' && TEXTURE_DOTS.map(([cx, cy, radius], index) => <circle cx={cx} cy={cy} fill={details.dark} key={index} opacity="0.23" r={Math.max(1.2, radius)} />)}{fruit === 'ORANGE' && <><circle cx="260" cy="218" fill="#8f3f0e" opacity="0.6" r="7" /><path d="M250 217 Q260 207 270 217" fill="none" stroke="#ffc36b" strokeWidth="3" /></>}</g>
+      <FruitTop fruit={fruit} leaf={details.leaf} />
+    </svg>
+  );
 }
 
 function fruitPath(fruit: FruitVariant): string {
@@ -96,7 +113,7 @@ function GripFingers({ side, squeeze, reduced }: { side: 'left' | 'right'; squee
   );
 }
 
-export function SqueezableFruit({ fruit, squeezePercent, showLabel = true }: SqueezableFruitProps) {
+export function SqueezableFruit({ fruit, squeezePercent, kilograms, showLabel = true }: SqueezableFruitProps) {
   const reduceMotion = Boolean(useReducedMotion());
   const rawId = useId();
   const id = rawId.replace(/:/g, '');
@@ -113,12 +130,16 @@ export function SqueezableFruit({ fruit, squeezePercent, showLabel = true }: Squ
   }, [fruit]);
 
   useEffect(() => {
+    if (kilograms !== undefined) {
+      setFillPercent(kilograms < 2 ? 25 : kilograms < 3 ? 50 : kilograms < 4 ? 75 : kilograms <= 5 ? 92 : 100);
+      return;
+    }
     if (!juiceActive) return;
     const timer = window.setInterval(() => {
       setFillPercent((current) => Math.min(91, current + 0.35 + pressure * 1.15));
     }, 250);
     return () => window.clearInterval(timer);
-  }, [juiceActive, pressure]);
+  }, [juiceActive, kilograms, pressure]);
 
   const shape = fruitPath(fruit);
   const streamWidth = 3 + pressure * 9;
@@ -129,7 +150,7 @@ export function SqueezableFruit({ fruit, squeezePercent, showLabel = true }: Squ
   const fillY = 397 - fillHeight;
 
   return (
-    <div className="grid place-items-center text-center" role="img" aria-label={`${details.label} ditekan ${Math.round(squeeze)} persen. Gelas jus terisi ${Math.round(fillPercent)} persen.`}>
+    <div className="grid place-items-center text-center" role="img" aria-label={`${details.label} ditekan ${Math.round(squeeze)} persen. Gelas jus terisi ${Math.round(fillPercent)} persen${kilograms !== undefined && kilograms > 5 ? ' dan meluber' : ''}.`}>
       <svg aria-hidden className="h-auto w-full max-w-[38rem] overflow-visible" viewBox="0 0 520 430">
         <defs>
           <clipPath id={`fruit-${id}`}><path d={shape} /></clipPath>
@@ -185,6 +206,7 @@ export function SqueezableFruit({ fruit, squeezePercent, showLabel = true }: Squ
           <m.path animate={{ y: fillY - 311 }} d="M205 311 Q225 303 245 311 T285 311 T325 311" fill="none" stroke={details.juiceLight} strokeWidth="6" transition={{ duration: reduceMotion ? 0 : 0.24 }} />
           {fillPercent > 22 && <><circle cx="241" cy={fillY + 22} fill="white" opacity="0.55" r="4" /><circle cx="277" cy={fillY + 34} fill="white" opacity="0.4" r="3" /><circle cx="260" cy={fillY + 50} fill="white" opacity="0.35" r="2.5" /></>}
         </g>
+        {kilograms !== undefined && kilograms > 5 && <m.g animate={reduceMotion ? { opacity: 1 } : { opacity: [0.65, 1, 0.65], y: [0, 4, 0] }} transition={{ duration: 0.8, repeat: Infinity }}><path d="M211 302 C201 317 205 344 195 359 C188 369 176 368 173 358 C169 346 184 340 187 328 C191 313 195 302 211 302Z" fill={details.juice} /><path d="M309 302 C321 318 316 342 327 355 C336 366 348 362 349 351 C350 340 337 334 334 322 C331 310 322 302 309 302Z" fill={details.juice} /><ellipse cx="260" cy="417" fill={details.juice} opacity="0.65" rx="118" ry="12" /></m.g>}
         <path d="M222 314 C223 349 227 386 234 401" fill="none" opacity="0.65" stroke="white" strokeLinecap="round" strokeWidth="5" />
         <ellipse cx="260" cy="301" fill="none" rx="50" ry="8" stroke="#3978bd" strokeOpacity="0.6" strokeWidth="5" />
       </svg>

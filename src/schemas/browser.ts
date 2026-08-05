@@ -133,18 +133,6 @@ export const ParticipantOverallMetricsSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('GO_NO_GO'), averageScore: z.number().int().min(0).max(1000), averageAccuracyPercent: z.number().min(0).max(100), averageReactionMs: z.number().nonnegative().nullable(), totalTrials: z.number().int().nonnegative(), totalHits: z.number().int().nonnegative(), totalMisses: z.number().int().nonnegative(), totalFalsePositives: z.number().int().nonnegative(), totalCorrectRejections: z.number().int().nonnegative() }),
   z.object({ mode: z.literal('SEQUENCE_MEMORY'), averageScore: z.number().int().min(0).max(1000), averageMemorySpan: z.number().min(0).max(6), averageFirstResponseMs: z.number().nonnegative().nullable(), levelLatencies: z.array(z.object({ level: z.number().int().min(1).max(6), latencyMs: z.number().nonnegative(), samples: z.number().int().positive() })).max(6) }),
 ]);
-export const MotorGripAdaptiveLevelDtoSchema = z.object({
-  fruitVariant: FruitVariantSchema,
-  level: z.number().int().min(1).max(6),
-  levelsTotal: z.literal(6),
-  targetKilograms: z.number().positive().max(120),
-  activeLevelEvaluation: z.object({
-    completedSessions: z.number().int().min(0).max(2),
-    requiredSessions: z.literal(3),
-    targetCompleted: z.number().int().min(0).max(2),
-    targetFailed: z.number().int().min(0).max(2),
-  }),
-});
 export const ParticipantModeSummaryDtoSchema = z.object({
   mode: GameModeSchema,
   savedSessionsTotal: z.number().int().nonnegative(),
@@ -155,11 +143,10 @@ export const ParticipantModeSummaryDtoSchema = z.object({
     gameRuleVersion: z.string().max(80),
   }).nullable(),
   overallMetrics: ParticipantOverallMetricsSchema.nullable(),
-  adaptiveLevel: MotorGripAdaptiveLevelDtoSchema.nullable(),
 });
 export const ParticipantDetailDtoSchema = ParticipantDtoSchema.extend({
   modeSummaries: z.array(ParticipantModeSummaryDtoSchema).length(3),
-  aggregateSummary: z.object({ savedSessionsTotal: z.number().int().nonnegative(), participantSummary: z.string().max(700), clinicianSummary: z.string().max(1000), updatedAt: IsoDateSchema }).nullable(),
+  aggregateSummary: z.object({ savedSessionsTotal: z.number().int().nonnegative(), participantSummary: z.string().max(700), clinicianSummary: z.string().max(1000), source: z.enum(['DETERMINISTIC', 'PENDING', 'PROCESSING', 'AI', 'FALLBACK']), updatedAt: IsoDateSchema }).nullable(),
 });
 export type ParticipantDetailDto = z.infer<typeof ParticipantDetailDtoSchema>;
 export const ParticipantSearchQuerySchema = z.object({
@@ -390,8 +377,8 @@ export const AiAudienceSummarySchema = z.object({
   observations: z.array(z.string().max(140)).max(3),
 });
 export const AiSummaryDtoSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('PENDING'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
-  z.object({ status: z.literal('UNAVAILABLE'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
+  z.object({ status: z.literal('PENDING') }),
+  z.object({ status: z.literal('UNAVAILABLE') }),
   z.object({ status: z.literal('READY'), participant: AiAudienceSummarySchema, clinician: AiAudienceSummarySchema }),
 ]);
 export type AiSummaryDto = z.infer<typeof AiSummaryDtoSchema>;

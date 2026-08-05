@@ -17,7 +17,7 @@ const QUESTIONS = [
   {
     question: 'Latihan apa saja yang tersedia?',
     answer:
-      'Arka menyediakan Peras Buah untuk latihan genggaman, Go-No-Go untuk perhatian, dan Ding Dong Dong untuk mengingat urutan tombol.',
+      'Arka menyediakan Peras Jeruk untuk latihan genggaman, Go-No-Go untuk perhatian, dan Ding Dong Dong untuk mengingat urutan tombol.',
   },
   {
     question: 'Apa yang perlu disiapkan sebelum latihan?',

@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Search, UserPlus } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Mars, Pause, Play, RotateCcw, Search, UserPlus, Venus } from 'lucide-react';
 import type { GameMode, ParticipantDto } from '../../schemas/index.ts';
 import { Button, Field } from '../../components/index.ts';
 import { SqueezableFruit, type FruitVariant } from '../../components/squeezable-fruit.tsx';
@@ -467,6 +467,7 @@ export function GameParticipantEntry({ csrfToken, mode, onContinue }: GamePartic
   const [name, setName] = useState('');
   const [selectedParticipant, setSelectedParticipant] = useState<ParticipantDto | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('');
   const [error, setError] = useState('');
   const deferredName = useDeferredValue(name);
   const searchInput = deferredName.trim();
@@ -483,6 +484,7 @@ export function GameParticipantEntry({ csrfToken, mode, onContinue }: GamePartic
   function choose(participant: ParticipantDto) {
     setName(participant.displayName);
     setSelectedParticipant(participant);
+    setGender('');
     setDropdownOpen(false);
     setError('');
     inputRef.current?.focus();
@@ -507,8 +509,12 @@ export function GameParticipantEntry({ csrfToken, mode, onContinue }: GamePartic
       onContinue({ displayName: existing.displayName, participantReference: existing.participantReference });
       return;
     }
+    if (!gender) {
+      setError('Pilih jenis kelamin peserta baru.');
+      return;
+    }
     try {
-      const participant = await createParticipant.mutateAsync({ displayName: normalized });
+      const participant = await createParticipant.mutateAsync({ displayName: normalized, gender });
       onContinue({ displayName: participant.displayName, participantReference: participant.participantReference });
     } catch (creationError) {
       setError(messageOf(creationError));
@@ -523,13 +529,14 @@ export function GameParticipantEntry({ csrfToken, mode, onContinue }: GamePartic
       <p className="mt-4 mb-0 text-lg leading-8 text-muted">Cari peserta yang sudah ada. Jika namanya belum terdaftar, profil baru akan dibuat otomatis.</p>
       <form className="mt-8 grid gap-5 rounded-md border-2 border-divider p-6 sm:p-8" noValidate onSubmit={submit}>
         <div className="relative">
-          <Field aria-autocomplete="list" aria-controls={listId} aria-expanded={showSuggestions} autoComplete="off" autoFocus error={error} hint={error ? undefined : selectedParticipant ? undefined : 'Ketik nama peserta.'} inputRef={inputRef} label="Cari atau tambah peserta" maxLength={100} name="participantName" onChange={(event) => { setName(event.target.value); setSelectedParticipant(null); setDropdownOpen(true); if (error) setError(''); }} placeholder="Contoh: Andrian" required role="combobox" trailing={<Search aria-hidden className="mr-3 size-5 text-muted" />} value={name} />
+          <Field aria-autocomplete="list" aria-controls={listId} aria-expanded={showSuggestions} autoComplete="off" autoFocus error={error} hint={error ? undefined : selectedParticipant ? undefined : 'Ketik nama peserta.'} inputRef={inputRef} label="Cari atau tambah peserta" maxLength={100} name="participantName" onChange={(event) => { setName(event.target.value); setSelectedParticipant(null); setGender(''); setDropdownOpen(true); if (error) setError(''); }} placeholder="Contoh: Andrian" required role="combobox" trailing={<Search aria-hidden className="mr-3 size-5 text-muted" />} value={name} />
           {isSearching && <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-muted" role="status"><Search aria-hidden className="size-4 animate-pulse" />Mencari peserta…</p>}
           {showSuggestions && <div className="absolute inset-x-0 top-[5.6rem] z-20 max-h-64 overflow-y-auto overscroll-contain rounded-sm border-2 border-ink bg-white p-1 shadow-[0_5px_0_#d9d4c5]"><p className="sticky top-0 z-10 m-0 bg-white px-3 py-2 text-xs font-black tracking-[0.08em] text-muted uppercase">Peserta ditemukan</p><ul className="m-0 list-none p-0" id={listId} role="listbox">{suggestions.map((participant) => <li className="border-b-2 border-divider last:border-b-0" key={participant.participantId} role="option"><button className="flex min-h-12 w-full items-center px-3 text-left font-bold hover:bg-divider focus-visible:bg-divider" onClick={() => choose(participant)} type="button">{participant.displayName}</button></li>)}</ul></div>}
           {isNewParticipant && <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-muted"><UserPlus aria-hidden className="size-4" />Peserta baru. Profil akan dibuat saat melanjutkan.</p>}
           {selectedParticipant && <p className="mt-2 mb-0 flex items-center gap-2 text-sm font-bold text-success"><Check aria-hidden className="size-4" />Peserta dipilih: {selectedParticipant.displayName}</p>}
         </div>
-        <Button disabled={createParticipant.isPending || isSearching} type="submit">{createParticipant.isPending ? 'Membuat peserta…' : isNewParticipant ? 'Buat peserta dan lanjut' : 'Lanjut ke tutorial'}</Button>
+        <AnimatePresence initial={false}>{isNewParticipant && <m.fieldset animate={{ height: 'auto', opacity: 1, y: 0 }} className="m-0 overflow-hidden border-0 p-0" exit={{ height: 0, opacity: 0, y: -10 }} initial={{ height: 0, opacity: 0, y: -10 }} transition={{ duration: 0.25 }}><legend className="mb-3 text-sm font-black">Jenis kelamin peserta baru</legend><div className="grid grid-cols-2 gap-3">{([['MALE', 'Laki-laki', Mars], ['FEMALE', 'Perempuan', Venus]] as const).map(([value, label, Icon]) => <button aria-pressed={gender === value} className={`flex min-h-14 items-center justify-center gap-2 rounded-sm border-2 px-4 font-black transition ${gender === value ? 'border-ink bg-brand-soft text-ink shadow-[0_3px_0_#171711]' : 'border-divider bg-white text-muted hover:border-ink'}`} key={value} onClick={() => { setGender(value); if (error) setError(''); }} type="button"><Icon aria-hidden className="size-5" />{label}</button>)}</div></m.fieldset>}</AnimatePresence>
+        <Button disabled={createParticipant.isPending || isSearching || (isNewParticipant && !gender)} type="submit">{createParticipant.isPending ? 'Membuat peserta…' : isNewParticipant ? 'Buat peserta dan lanjut' : 'Lanjut ke tutorial'}</Button>
       </form>
     </section>
   );
