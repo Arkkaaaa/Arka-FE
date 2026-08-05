@@ -166,7 +166,7 @@ function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; 
             : [{ stimulus: 'WAYANG', assetIndex: 0 }];
     const selectedAsset = sequence[Math.min(Math.floor(progress * sequence.length), sequence.length - 1)]!;
     const asset = goNoGoStimulusAssetAt(selectedAsset.stimulus, selectedAsset.assetIndex);
-    const label = step === 0 ? 'Perhatikan' : step === 1 ? 'Gambar harus sama persis' : step === 5 ? '5 soal per level' : 'Perhatikan gambar';
+    const label = step === 0 ? 'Perhatikan' : step === 1 ? 'Jenis gambar harus sama' : step === 5 ? '5 soal per level' : 'Perhatikan gambar';
     return (
       <div className="grid w-full max-w-xl place-items-center gap-4 p-4 text-center sm:p-6">
         <img alt={asset.alt} className="aspect-[4/5] w-full max-w-sm object-contain" src={asset.src} />

@@ -67,7 +67,7 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
   },
   GO_NO_GO: {
     audioLanguage: TUTORIAL_AUDIO_LANGUAGE,
-    instruction: 'Ingat gambar target, lalu kenali gambar yang sama persis.',
+    instruction: 'Ingat jenis gambar target, lalu kenali gambar dari jenis yang sama.',
     steps: [
       {
         title: 'Perhatikan gambar target',
@@ -77,10 +77,10 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
         audioSrc: '/tutorial/step-mode2/step1.m4a',
       },
       {
-        title: 'Ingat gambar persisnya',
-        instruction: 'Gambar dari jenis yang sama dapat memiliki bentuk berbeda. Ingat gambar yang sama persis.',
+        title: 'Ingat jenis gambarnya',
+        instruction: 'Gambar dari jenis yang sama dapat memiliki bentuk berbeda. Semua gambar Wayang tetap termasuk target Wayang.',
         visual: 'Wayang pertama dibandingkan dengan Wayang kedua.',
-        caption: 'Wayang yang berbeda bukan gambar target.',
+        caption: 'Bentuknya boleh berbeda selama jenis gambarnya sama.',
         audioSrc: '/tutorial/step-mode2/step2.m4a',
       },
       {
@@ -92,8 +92,8 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
       },
       {
         title: 'Pilih gambar yang sama',
-        instruction: 'Saat gambar target yang sama persis muncul, genggam alat satu kali.',
-        visual: 'Wayang target muncul kembali di antara gambar lain.',
+        instruction: 'Saat gambar dari jenis target muncul, genggam alat satu kali.',
+        visual: 'Salah satu gambar Wayang muncul di antara gambar lain.',
         caption: 'Genggaman langsung melanjutkan ke soal berikutnya.',
         audioSrc: '/tutorial/step-mode2/step4.m4a',
       },
