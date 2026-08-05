@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { GameMode, HistoryPageDto, ParticipantDetailDto } from '../../../schemas/index.ts';
 import { clipboardEmoji } from '../../../assets/index.ts';
 import { AccountHeader, Button, DatePicker, Field, buttonClassName } from '../../../components/index.ts';
+import { FRUIT_DETAILS } from '../../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../../config/api-client.ts';
 import { GAME_MODES } from '../../../constants/game-modes.ts';
 import { ROUTES } from '../../../constants/routes.ts';
@@ -70,10 +71,14 @@ function SessionDistribution({ summaries }: { summaries: ParticipantDetailDto['m
 function ModeSummaryCard({ summary }: { summary: ParticipantDetailDto['modeSummaries'][number] }) {
   const game = GAME_MODES.find((item) => item.mode === summary.mode)!;
   const averageScore = summary.overallMetrics?.averageScore;
+  const adaptive = summary.adaptiveLevel;
+  const evaluation = adaptive?.activeLevelEvaluation;
+  const fruit = adaptive ? FRUIT_DETAILS[adaptive.fruitVariant] : null;
   return (
     <article className="flex min-h-44 flex-col rounded-md bg-canvas/70 p-5">
       <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full" style={{ backgroundColor: game.softColor }}><img alt="" aria-hidden className="size-7" src={game.emoji} /></span><div><h3 className="m-0 text-xl font-black">{game.title}</h3><p className="mt-1 mb-0 text-sm font-bold text-muted">{summary.savedSessionsTotal} permainan tersimpan</p></div></div>
-      {summary.latestSession ? <div className="mt-auto grid grid-cols-2 gap-4 pt-5"><div><span className="text-sm font-bold text-muted">Rata-rata skor</span><strong className="mt-1 block text-2xl">{averageScore ?? '—'}</strong></div><div><span className="text-sm font-bold text-muted">Skor terbaru</span><strong className="mt-1 block text-2xl">{summary.latestSession.score}</strong></div></div> : <div className="grid flex-1 place-items-center text-center text-muted"><p className="m-0 font-bold">Belum ada data permainan.</p></div>}
+      {adaptive && fruit && evaluation && <div className="mt-5 rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-4"><div><p className="m-0 text-xs font-black tracking-[0.08em] text-muted uppercase">Buah saat ini</p><div className="mt-2 flex items-center gap-2"><span aria-hidden className="size-4 rounded-full" style={{ backgroundColor: fruit.color }} /><strong className="text-2xl">{fruit.label}</strong></div></div><div className="text-right"><span className="block text-sm font-bold text-muted">Level {adaptive.level}/{adaptive.levelsTotal}</span><strong className="mt-1 block text-2xl">{adaptive.targetKilograms} kg</strong></div></div><div className="mt-4"><div className="flex items-center justify-between gap-3 text-sm font-bold"><span>Evaluasi level aktif</span><span className="text-muted">{evaluation.completedSessions}/{evaluation.requiredSessions} sesi</span></div><div aria-label={`${evaluation.targetCompleted} target tercapai, ${evaluation.targetFailed} target belum tercapai, ${evaluation.requiredSessions - evaluation.completedSessions} sesi belum dimainkan`} className="mt-2 grid grid-cols-3 gap-2" role="img">{Array.from({ length: 3 }, (_, index) => <span className={`h-3 rounded-full ${index < evaluation.targetCompleted ? 'bg-success' : index < evaluation.completedSessions ? 'bg-danger' : 'bg-divider'}`} key={index} />)}</div><p className="mt-2 mb-0 text-xs font-bold text-muted">{evaluation.targetCompleted} tercapai · {evaluation.targetFailed} belum tercapai · {evaluation.requiredSessions - evaluation.completedSessions} sesi tersisa</p></div></div>}
+      {summary.latestSession ? <div className="mt-auto grid grid-cols-2 gap-4 pt-5"><div><span className="text-sm font-bold text-muted">Rata-rata skor</span><strong className="mt-1 block text-2xl">{averageScore ?? '—'}</strong></div><div><span className="text-sm font-bold text-muted">Skor terbaru</span><strong className="mt-1 block text-2xl">{summary.latestSession.score}</strong></div></div> : !adaptive && <div className="grid flex-1 place-items-center text-center text-muted"><p className="m-0 font-bold">Belum ada data permainan.</p></div>}
     </article>
   );
 }
