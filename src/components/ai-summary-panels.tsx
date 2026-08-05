@@ -1,9 +1,44 @@
+import { useId, useState } from 'react';
 import type { AiSummaryDto } from '../schemas/index.ts';
 
-function SummaryAudience({ label, summary }: { label: string; summary: Extract<AiSummaryDto, { status: 'READY' }>['participant'] }) {
-  return <article className="rounded-md border-2 border-divider bg-white p-4"><p className="m-0 text-xs font-black tracking-[0.08em] text-accent uppercase">{label}</p><p className="mt-2 mb-0 text-sm leading-6 font-bold">{summary.summaryText}</p>{summary.observations.length > 0 && <ul className="mt-2 mb-0 grid gap-1 pl-5 text-xs leading-5 text-muted">{summary.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>}</article>;
-}
+type Audience = 'participant' | 'clinician';
+
+const AUDIENCES: readonly { id: Audience; label: string }[] = [
+  { id: 'participant', label: 'Peserta' },
+  { id: 'clinician', label: 'Dokter' },
+];
 
 export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
-  return <section aria-label="Ringkasan hasil" className="grid gap-3"><div className="grid gap-3 md:grid-cols-2"><SummaryAudience label="Untuk peserta" summary={summary.participant} /><SummaryAudience label="Untuk dokter" summary={summary.clinician} /></div>{summary.status !== 'READY' && <p aria-live="polite" className="m-0 rounded-sm bg-canvas/60 px-3 py-2 text-center text-xs font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan otomatis tersedia; penyempurnaan AI sedang diproses.' : 'Ringkasan otomatis berbasis statistik sesi.'}</p>}</section>;
+  const [audience, setAudience] = useState<Audience>('participant');
+  const tabsId = useId();
+  const active = summary[audience];
+
+  return (
+    <section aria-labelledby={`${tabsId}-title`} className="overflow-hidden rounded-md border-2 border-divider bg-white">
+      <div className="border-b-2 border-divider px-4 pt-4 sm:px-5">
+        <p className="m-0 text-xs font-black tracking-[0.08em] text-accent uppercase" id={`${tabsId}-title`}>Ringkasan sesi</p>
+        <div aria-label="Pilih ringkasan" className="mt-3 flex gap-2" role="tablist">
+          {AUDIENCES.map((item) => (
+            <button
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={audience === item.id}
+              className={`min-h-11 border-0 border-b-4 bg-transparent px-4 text-sm font-black transition ${audience === item.id ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'}`}
+              id={`${tabsId}-${item.id}`}
+              key={item.id}
+              onClick={() => setAudience(item.id)}
+              role="tab"
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div aria-labelledby={`${tabsId}-${audience}`} className="p-4 sm:p-5" id={`${tabsId}-panel`} role="tabpanel" tabIndex={0}>
+        <p className="m-0 text-base leading-7 font-bold">{active.summaryText}</p>
+        {active.observations.length > 0 && <ul className="mt-3 mb-0 grid gap-2 pl-5 text-sm leading-6 text-muted">{active.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>}
+      </div>
+      {summary.status !== 'READY' && <p aria-live="polite" className="m-0 border-t border-divider bg-canvas/60 px-4 py-3 text-center text-xs font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan AI sedang diproses.' : 'Ringkasan otomatis berbasis statistik sesi.'}</p>}
+    </section>
+  );
 }
