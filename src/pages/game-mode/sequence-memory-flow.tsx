@@ -240,6 +240,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const asset = stimulus && assetIndex !== null && assetIndex !== undefined
     ? goNoGoStimulusAssetAt(stimulus, assetIndex)
     : null;
+  const timer = <SessionCountdown remainingMs={visual?.remainingMs ?? 180_000} totalMs={180_000} />;
 
   useEffect(() => {
     void preloadGoNoGoImages();
@@ -282,8 +283,9 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
 
   if (isTargetPreview) {
     return (
-      <div className="mx-auto grid min-h-[34rem] w-full max-w-5xl place-items-center p-6 text-center sm:p-8">
-        <div>
+      <div className="mx-auto w-full max-w-5xl p-6 sm:p-8">
+        <div className="flex justify-start">{timer}</div>
+        <div className="grid min-h-[27rem] place-items-center text-center">
           {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-sm object-contain sm:max-w-md" key={`${visual.questionNumber}-${stimulus}-${assetIndex}`} src={asset.src} />}
           <p className="mt-5 mb-0 text-3xl font-black">Perhatikan</p>
         </div>
@@ -293,15 +295,16 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
 
   if (visual?.phase === 'STIMULUS') {
     return (
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
+      <div className="mx-auto w-full max-w-5xl p-6 sm:p-8">
+        <div className="flex justify-start">{timer}</div>
+        <div className="grid min-h-[27rem] place-items-center text-center">
           {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-sm object-contain sm:max-w-md" key={`${visual.level}-${visual.questionNumber}-${stimulus}-${assetIndex}`} src={asset.src} />}
         </div>
       </div>
     );
   }
 
-  return <div className="mx-auto grid min-h-[34rem] w-full max-w-5xl place-items-center text-center">{visual?.candidateIndex === null && <p className="m-0 text-3xl font-black">Soal berikutnya</p>}</div>;
+  return <div className="mx-auto w-full max-w-5xl p-6 sm:p-8"><div className="flex justify-start">{timer}</div><div className="grid min-h-[27rem] place-items-center text-center">{visual?.candidateIndex === null && <p className="m-0 text-3xl font-black">Soal berikutnya</p>}</div></div>;
 }
 
 function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; mode: GameMode; snapshot: SessionSnapshot }) {
