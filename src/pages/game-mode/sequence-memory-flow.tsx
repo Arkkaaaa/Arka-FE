@@ -294,8 +294,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   if (visual?.phase === 'STIMULUS') {
     return (
       <div className="mx-auto w-full max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-lg font-black text-muted"><p className="m-0">Soal {visual.levelQuestionNumber} dari {visual.levelTrialCount}</p><p className="m-0">Level {visual.level} dari {visual.totalLevels}</p></div>
-        <div className="mt-7 grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
+        <div className="grid min-h-[30rem] place-items-center p-6 text-center sm:p-8">
           {asset && <img alt={asset.alt} className="mx-auto aspect-[4/5] w-full max-w-sm object-contain sm:max-w-md" key={`${visual.level}-${visual.questionNumber}-${stimulus}-${assetIndex}`} src={asset.src} />}
         </div>
       </div>
@@ -370,10 +369,15 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
     : preparation.data?.fruitVariant ?? fruit;
   const canStart = setupSnapshot?.canStart ?? preparation.data?.canStart ?? false;
   const persistedStatus = persistedSession.data?.status;
+  const realtimeStatus = sessionSnapshot?.status;
   const durableTerminal = persistedStatus && ['ABORTED', 'INTERRUPTED', 'COMPLETED', 'SAVING', 'SAVED', 'SAVE_FAILED'].includes(persistedStatus);
-  const status = durableTerminal
+  const durableAhead =
+    (persistedStatus === 'COUNTDOWN' && realtimeStatus === 'BINDING') ||
+    (persistedStatus === 'PLAYING' && (realtimeStatus === 'BINDING' || realtimeStatus === 'COUNTDOWN')) ||
+    persistedStatus === 'PAUSED';
+  const status = durableTerminal || durableAhead
     ? persistedStatus
-    : sessionSnapshot?.status ?? (persistedStatus && persistedStatus !== 'BINDING' ? persistedStatus : createSession.data?.status ?? 'BINDING');
+    : realtimeStatus ?? (persistedStatus && persistedStatus !== 'BINDING' ? persistedStatus : createSession.data?.status ?? 'BINDING');
   const setupTerminal = setupSnapshot?.state === 'CANCELLED' || setupSnapshot?.state === 'EXPIRED';
   const setupFailed = setupSocket.status === 'FAILED' || setupSocket.protocolError !== null;
   const setupStatusLabel = createSession.isPending
