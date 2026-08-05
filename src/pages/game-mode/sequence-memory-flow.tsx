@@ -233,6 +233,7 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
 function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const targetAudioRef = useRef<HTMLAudioElement | null>(null);
+  const transitionAudioRef = useRef<HTMLAudioElement | null>(null);
   const isTargetPreview = visual?.phase === 'TARGET_PREVIEW';
   const stimulus = (isTargetPreview ? visual?.targetStimulus : visual?.phase === 'STIMULUS' ? visual.stimulus : null) as GoNoGoStimulus | null | undefined;
   const assetIndex = isTargetPreview ? visual?.targetAssetIndex : visual?.phase === 'STIMULUS' ? visual.assetIndex : null;
@@ -246,20 +247,34 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
 
   useEffect(() => {
     const audio = new Audio();
+    const transitionAudio = new Audio('/audio/game-mode2/next-question.m4a');
+    transitionAudio.preload = 'auto';
     targetAudioRef.current = audio;
+    transitionAudioRef.current = transitionAudio;
     return () => {
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
+      transitionAudio.pause();
+      transitionAudio.removeAttribute('src');
+      transitionAudio.load();
       targetAudioRef.current = null;
+      transitionAudioRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const audio = targetAudioRef.current;
-    if (!audio) return;
+    const transitionAudio = transitionAudioRef.current;
+    if (!audio || !transitionAudio) return;
     audio.pause();
     audio.currentTime = 0;
+    transitionAudio.pause();
+    transitionAudio.currentTime = 0;
+    if (visual?.phase === 'TRANSITION' && visual.questionNumber > 1 && visual.candidateIndex === null) {
+      void transitionAudio.play().catch(() => undefined);
+      return;
+    }
     if (visual?.phase !== 'TARGET_PREVIEW') return;
     audio.src = goNoGoTargetAudioUrl(visual.targetStimulus, visual.targetAssetIndex);
     void audio.play().catch(() => undefined);
@@ -287,7 +302,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
     );
   }
 
-  return <div aria-hidden className="mx-auto min-h-[34rem] w-full max-w-5xl" />;
+  return <div className="mx-auto grid min-h-[34rem] w-full max-w-5xl place-items-center text-center">{visual?.candidateIndex === null && <p className="m-0 text-3xl font-black">Soal berikutnya</p>}</div>;
 }
 
 function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; mode: GameMode; snapshot: SessionSnapshot }) {
@@ -497,7 +512,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   if (status === 'SAVED' && savedResult) return <GameResult displayName={sessionSnapshot?.displayName ?? participantName} onReplay={reset} result={savedResult} />;
   if (['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(status)) return <section className="mx-auto grid min-h-[32rem] max-w-2xl place-items-center text-center" aria-labelledby="terminal-title"><div><AlertTriangle aria-hidden className="mx-auto size-12 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">{status === 'ABORTED' ? 'Sesi diakhiri' : status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}</h1><p className="mt-4 mb-0 text-lg leading-8 text-muted">{sessionSnapshot?.message ?? 'Sesi berhenti. Pastikan perangkat tetap terhubung lalu coba lagi.'}</p><Button className="mt-7" onClick={reset}>Kembali ke awal</Button></div></section>;
   if (status === 'COMPLETED' || status === 'SAVING') return <section className="grid min-h-96 place-items-center text-center" aria-live="polite"><div><CheckCircle2 aria-hidden className="mx-auto size-12 text-success" /><h1 className="mt-5 mb-0 text-4xl font-black">Permainan selesai</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">Menyimpan hasil…</p></div></section>;
-  if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">Perangkat dan aplikasi sedang dikonfirmasi.</p></>}</div></section>;
+  if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">{sessionSnapshot?.message ?? 'Perangkat dan aplikasi sedang dikonfirmasi.'}</p></>}</div></section>;
 
   return (
     <section aria-labelledby="game-title" className="grid h-full min-h-0 grid-rows-[auto_1fr]"><div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-divider pb-3"><div><p className="m-0 text-sm font-black text-muted">{participantName}</p><h1 className="mt-1 mb-0 text-3xl font-black" id="game-title">{selected.title}</h1></div><div className="flex flex-wrap items-center gap-2"><Button disabled={pauseCommand !== null} onClick={togglePause} variant="secondary">{status === 'PAUSED' ? <Play aria-hidden className="size-5" /> : <Pause aria-hidden className="size-5" />}{pauseCommand === 'PAUSE' ? 'Menjeda…' : pauseCommand === 'RESUME' ? 'Melanjutkan…' : status === 'PAUSED' ? 'Lanjutkan' : 'Jeda'}</Button><button className={buttonClassName('danger')} onClick={() => setAbortDialogOpen(true)} ref={abortButtonRef} type="button">Akhiri sesi</button></div></div>{sessionSocket.protocolError && <p className="mt-4 mb-0 text-base font-bold text-muted" role="status">{sessionSocket.protocolError}</p>}{status === 'PAUSED' ? <div className="mt-7 grid min-h-96 place-items-center rounded-md border-2 border-divider text-center"><div><Pause aria-hidden className="mx-auto size-12 text-muted" /><h2 className="mt-4 mb-0 text-4xl font-black">Dijeda</h2><p className="mt-3 mb-0 text-lg text-muted">Waktu dan penilaian berhenti.</p></div></div> : sessionSnapshot ? <div className="min-h-0 overflow-hidden pt-4"><GameBoard encouragementAudioRef={encouragementAudioRef} encouragementStateRef={encouragementStateRef} fruit={activeFruit} mode={mode} snapshot={sessionSnapshot} /></div> : null}<dialog aria-describedby="abort-session-description" aria-labelledby="abort-session-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-md border-2 border-divider bg-white p-0 text-ink backdrop:bg-ink/60" onCancel={(event) => { event.preventDefault(); closeAbortDialog(); }} ref={abortDialogRef} role="alertdialog"><div className="p-6 sm:p-8"><h2 className="m-0 text-3xl font-black tracking-[-0.04em]" id="abort-session-title">Akhiri sesi?</h2><p className="mt-4 mb-0 text-lg leading-8 text-muted" id="abort-session-description">Sesi akan dihentikan dan tidak dihitung sebagai permainan selesai.</p><div className="mt-7 grid gap-3 sm:grid-cols-2"><Button onClick={closeAbortDialog} variant="secondary">Lanjut bermain</Button><Button onClick={confirmAbort} variant="danger">Ya, akhiri sesi</Button></div></div></dialog></section>

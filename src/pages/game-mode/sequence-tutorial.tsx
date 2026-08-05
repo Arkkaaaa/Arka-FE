@@ -7,7 +7,7 @@ import { SqueezableFruit, type FruitVariant } from '../../components/squeezable-
 import { messageOf } from '../../config/api-client.ts';
 import { GAME_MODES } from '../../constants/game-modes.ts';
 import { tutorials } from '../../constants/tutorials.ts';
-import { goNoGoStimulusAsset, preloadGoNoGoImages } from '../../constants/go-no-go-stimuli.ts';
+import { goNoGoStimulusAssetAt, preloadGoNoGoImages, type GoNoGoStimulus } from '../../constants/go-no-go-stimuli.ts';
 import { useCreateParticipantMutation } from '../../hooks/participants/use-participant-mutations.ts';
 import { useParticipantSearchQuery } from '../../hooks/participants/use-participant-queries.ts';
 
@@ -144,11 +144,33 @@ function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; 
     return <SequenceConsole activeCode={sequenceTutorialTile(step, progress)} phase={step === 0 ? 'INTRO' : step === 3 ? 'RESPOND' : step === 5 ? 'READY' : 'WATCH'} />;
   }
   if (mode === 'GO_NO_GO') {
-    const asset = goNoGoStimulusAsset('WAYANG', 'tutorial');
+    const sequence: readonly { stimulus: GoNoGoStimulus; assetIndex: number }[] = step === 1
+      ? [{ stimulus: 'WAYANG', assetIndex: progress < 0.5 ? 0 : 1 }]
+      : step === 2
+        ? [
+            { stimulus: 'BATIK', assetIndex: 1 },
+            { stimulus: 'CANDI', assetIndex: 0 },
+            { stimulus: 'WAYANG', assetIndex: 1 },
+          ]
+        : step === 3
+          ? [
+              { stimulus: 'BATIK', assetIndex: 0 },
+              { stimulus: 'WAYANG', assetIndex: 0 },
+            ]
+          : step === 4
+            ? [
+                { stimulus: 'WAYANG', assetIndex: 0 },
+                { stimulus: 'ANGKLUNG', assetIndex: 2 },
+                { stimulus: 'WAYANG', assetIndex: 0 },
+              ]
+            : [{ stimulus: 'WAYANG', assetIndex: 0 }];
+    const selectedAsset = sequence[Math.min(Math.floor(progress * sequence.length), sequence.length - 1)]!;
+    const asset = goNoGoStimulusAssetAt(selectedAsset.stimulus, selectedAsset.assetIndex);
+    const label = step === 0 ? 'Perhatikan' : step === 1 ? 'Gambar harus sama persis' : step === 5 ? '5 soal per level' : 'Perhatikan gambar';
     return (
       <div className="grid w-full max-w-xl place-items-center gap-4 p-4 text-center sm:p-6">
         <img alt={asset.alt} className="aspect-[4/5] w-full max-w-sm object-contain" src={asset.src} />
-        <p className="m-0 text-2xl font-black">Perhatikan</p>
+        <p className="m-0 text-2xl font-black">{label}</p>
       </div>
     );
   }
@@ -389,17 +411,17 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
     <section className="mx-auto flex h-full min-h-0 w-full max-w-[88rem] flex-col overflow-hidden" aria-labelledby="tutorial-title">
       <audio aria-label={`Panduan suara langkah ${step + 1}`} lang={definition.audioLanguage} preload="auto" ref={audioRef} />
       <header className="flex flex-wrap items-start justify-between gap-5">
-        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1>{mode !== 'GO_NO_GO' && <p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p>}</div>
+        <div><p className="landing-eyebrow">Tutorial untuk {participantName}</p><h1 className="m-0 text-4xl font-black tracking-[-0.05em] sm:text-5xl" id="tutorial-title">{selected.title}</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">{definition.instruction}</p></div>
         <div className="flex items-center gap-4"><p aria-label={`Langkah ${step + 1} dari ${definition.steps.length}`} className="m-0 text-2xl font-black text-accent">{step + 1}/{definition.steps.length}</p><Button onClick={() => leaveTutorial(onReady)} variant="quiet">Lewati tutorial</Button></div>
       </header>
 
-      <div className={`grid min-h-0 flex-1 items-center gap-10 overflow-y-auto py-8 ${mode === 'GO_NO_GO' ? '' : 'lg:grid-cols-[1.15fr_0.85fr] lg:gap-16'}`}>
+      <div className="grid min-h-0 flex-1 items-center gap-10 overflow-y-auto py-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
         <AnimatePresence initial={false} mode="wait">
           <m.div animate={{ opacity: 1, scale: 1, y: 0 }} className="grid w-full place-items-center" exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : -10 }} initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 14 }} key={`${mode}-${step}`} transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}>
             <TutorialVisual fruit={fruit} mode={mode} progress={progress} step={step} />
           </m.div>
         </AnimatePresence>
-        {mode !== 'GO_NO_GO' && <AnimatePresence initial={false} mode="wait">
+        <AnimatePresence initial={false} mode="wait">
           <m.div animate={{ opacity: 1, x: 0 }} className="max-w-xl" exit={{ opacity: 0, x: reduceMotion ? 0 : -18 }} initial={{ opacity: 0, x: reduceMotion ? 0 : 18 }} key={current.title} transition={{ duration: reduceMotion ? 0 : 0.26 }}>
             <p className="m-0 text-sm font-black tracking-[0.1em] text-accent uppercase">Langkah {step + 1}</p>
             <h2 className="mt-3 mb-0 text-4xl font-black tracking-[-0.04em]">{current.title}</h2>
@@ -409,8 +431,8 @@ export function GameTutorial({ fruit, mode, participantName, onBack, onReady }: 
             {autoAdvanceSeconds !== null && <div className="mt-4 flex items-center gap-3" role="status"><span className="grid size-9 place-items-center rounded-full bg-brand-soft text-lg font-black text-accent">{autoAdvanceSeconds}</span><span className="font-bold text-muted">Langkah berikutnya segera dimulai…</span></div>}
             {audioError && <p className="mt-3 mb-0 text-sm font-bold text-danger" role="alert">Panduan suara belum dapat diputar. Anda tetap dapat membaca petunjuk di layar.</p>}
           </m.div>
-        </AnimatePresence>}
-        {mode === 'GO_NO_GO' && <div>{!imagesReady && !imageError && <p className="m-0 text-sm font-bold text-muted" role="status">Menyiapkan gambar permainan…</p>}{imageError && <p className="m-0 text-sm font-bold text-danger" role="alert">Gambar permainan belum dapat dimuat. Periksa koneksi lalu muat ulang halaman.</p>}</div>}
+        </AnimatePresence>
+        {mode === 'GO_NO_GO' && (!imagesReady || imageError) && <div className="lg:col-span-2">{!imagesReady && !imageError && <p className="m-0 text-sm font-bold text-muted" role="status">Menyiapkan gambar permainan…</p>}{imageError && <p className="m-0 text-sm font-bold text-danger" role="alert">Gambar permainan belum dapat dimuat. Periksa koneksi lalu muat ulang halaman.</p>}</div>}
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 pb-2">
