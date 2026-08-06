@@ -1,4 +1,4 @@
-import { FileDown } from 'lucide-react';
+import { FileDown, Sparkles } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { AiSummaryDto } from '../schemas/index.ts';
 import { API_ENDPOINTS, apiUrl } from '../constants/api.ts';
@@ -18,10 +18,29 @@ function normalizeSummaryText(text: string): string {
   );
 }
 
+export function SummaryLoading({ overall = false }: { overall?: boolean }) {
+  return (
+    <section aria-atomic="true" aria-live="polite" className="overflow-hidden rounded-md border-2 border-divider bg-white" role="status">
+      <div className="flex items-center gap-4 p-5 sm:p-6">
+        <span aria-hidden className="relative grid size-12 shrink-0 place-items-center rounded-full bg-brand-soft">
+          <span className="absolute inset-1 motion-safe:animate-spin rounded-full border-2 border-transparent border-t-accent" />
+          <Sparkles className="size-5 text-accent" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 font-black text-ink">{overall ? 'Menyiapkan ringkasan keseluruhan' : 'Menyiapkan ringkasan sesi'}</p>
+          <p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil permainan sudah tersimpan. Ringkasan dibuat otomatis dan akan tampil sebentar lagi.</p>
+          <div aria-hidden className="mt-3 flex gap-1.5"><span className="size-2 motion-safe:animate-pulse rounded-full bg-accent" /><span className="size-2 motion-safe:animate-pulse rounded-full bg-accent [animation-delay:180ms]" /><span className="size-2 motion-safe:animate-pulse rounded-full bg-accent [animation-delay:360ms]" /></div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AiSummaryPanels({ sessionId, summary }: { sessionId?: string; summary: AiSummaryDto }) {
   const [audience, setAudience] = useState<Audience>('participant');
   const tabsId = useId();
-  if (summary.status !== 'READY') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-white p-5 text-center font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan sedang disiapkan.' : 'Ringkasan belum tersedia untuk sesi ini.'}</section>;
+  if (summary.status === 'PENDING') return <SummaryLoading />;
+  if (summary.status !== 'READY') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-white p-5 text-center font-bold text-muted">Ringkasan belum tersedia untuk sesi ini.</section>;
   const active = summary[audience];
 
   return (

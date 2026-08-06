@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { GameMode, HistoryPageDto, ParticipantDetailDto } from '../../../schemas/index.ts';
 import { clipboardEmoji } from '../../../assets/index.ts';
 import { AccountHeader, Button, DatePicker, Field, buttonClassName } from '../../../components/index.ts';
+import { SummaryLoading } from '../../../components/ai-summary-panels.tsx';
 import { FruitIcon } from '../../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../../config/api-client.ts';
 import { API_ENDPOINTS, apiUrl } from '../../../constants/api.ts';
@@ -109,7 +110,7 @@ function OverallModePanel({ summary }: { summary: ParticipantDetailDto['modeSumm
 
 function AggregateSummaryTabs({ participantId, summary }: { participantId: string; summary: NonNullable<ParticipantDetailDto['aggregateSummary']> }) {
   const [audience, setAudience] = useState<'participant' | 'clinician'>('participant');
-  if (summary.source !== 'AI') return <div aria-live="polite" className="mt-5 rounded-md border-2 border-divider bg-white p-6 text-center font-bold text-muted">Ringkasan keseluruhan sedang disiapkan.</div>;
+  if (summary.source !== 'AI') return <div className="mt-5"><SummaryLoading overall /></div>;
   const content = audience === 'participant' ? summary.participantSummary : summary.clinicianSummary;
   return (
     <div className="mt-5 overflow-hidden rounded-md border-2 border-divider bg-white">
