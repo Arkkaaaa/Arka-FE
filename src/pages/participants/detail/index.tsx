@@ -7,6 +7,7 @@ import { clipboardEmoji } from '../../../assets/index.ts';
 import { AccountHeader, Button, DatePicker, Field, buttonClassName } from '../../../components/index.ts';
 import { FruitIcon } from '../../../components/squeezable-fruit.tsx';
 import { messageOf } from '../../../config/api-client.ts';
+import { API_ENDPOINTS, apiUrl } from '../../../constants/api.ts';
 import { GAME_MODES } from '../../../constants/game-modes.ts';
 import { ROUTES } from '../../../constants/routes.ts';
 import { useAccountPage } from '../../../hooks/auth/use-account-page.ts';
@@ -113,7 +114,7 @@ function AggregateSummaryTabs({ participantId, summary }: { participantId: strin
   return (
     <div className="mt-5 overflow-hidden rounded-md border-2 border-divider bg-white">
       <div aria-label="Pilih ringkasan keseluruhan" className="flex gap-2 border-b-2 border-divider px-5 pt-4" role="tablist">{([['participant', 'Peserta'], ['clinician', 'Dokter']] as const).map(([value, label]) => <button aria-controls="aggregate-summary-panel" aria-selected={audience === value} className={`min-h-11 border-0 border-b-4 bg-transparent px-4 text-sm font-black ${audience === value ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'}`} key={value} onClick={() => setAudience(value)} role="tab" type="button">{label}</button>)}</div>
-      <article className="p-5 sm:p-6" id="aggregate-summary-panel" role="tabpanel"><p className="m-0 text-base leading-8 font-bold">{content}</p><div className="mt-5 flex justify-end"><Link className={buttonClassName('secondary')} target="_blank" to={`${ROUTES.participantReport(participantId)}?audience=${audience}`}><FileDown aria-hidden className="size-5" />Unduh PDF {audience === 'participant' ? 'peserta' : 'dokter'}</Link></div></article>
+      <article className="p-5 sm:p-6" id="aggregate-summary-panel" role="tabpanel"><p className="m-0 text-base leading-8 font-bold">{content}</p><div className="mt-5 flex justify-end"><a className={buttonClassName('secondary')} href={apiUrl(API_ENDPOINTS.participants.report(participantId, audience))}><FileDown aria-hidden className="size-5" />Unduh PDF {audience === 'participant' ? 'peserta' : 'dokter'}</a></div></article>
     </div>
   );
 }

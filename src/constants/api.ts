@@ -1,3 +1,9 @@
+const backendUrl = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/u, '') ?? '';
+
+export function apiUrl(path: string): string {
+  return `${backendUrl}${path}`;
+}
+
 export const API_ENDPOINTS = {
   auth: {
     me: '/api/v1/me',
@@ -23,11 +29,15 @@ export const API_ENDPOINTS = {
     preparationStatus: (preparationId: string) => `/api/v1/game-preparations/${encodeURIComponent(preparationId)}/status`,
     sessions: '/api/v1/game-sessions',
     session: (sessionId: string) => `/api/v1/game-sessions/${encodeURIComponent(sessionId)}`,
+    sessionReport: (sessionId: string, audience: 'participant' | 'clinician') =>
+      `/api/v1/game-sessions/${encodeURIComponent(sessionId)}/report?audience=${audience}`,
   },
   participants: {
     list: '/api/v1/participants',
     resolve: '/api/v1/participants/resolve',
     detail: (participantId: string) => `/api/v1/participants/${encodeURIComponent(participantId)}`,
+    report: (participantId: string, audience: 'participant' | 'clinician') =>
+      `/api/v1/participants/${encodeURIComponent(participantId)}/report?audience=${audience}`,
     sessions: (participantId: string) =>
       `/api/v1/participants/${encodeURIComponent(participantId)}/sessions`,
     leaderboard: (participantId: string) =>

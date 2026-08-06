@@ -29,13 +29,10 @@ export const ROUTES = {
   participant: (participantId: string) => `/participants/${encodeURIComponent(participantId)}`,
   participantHistory: (participantId: string) =>
     `/participants/${encodeURIComponent(participantId)}/history`,
-  participantReport: (participantId: string) =>
-    `/participants/${encodeURIComponent(participantId)}/report`,
   participantEntry: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/participant`,
   tutorial: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/tutorial`,
   setup: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/setup`,
   session: (sessionId: string) => `/sessions/${encodeURIComponent(sessionId)}`,
-  sessionReport: (sessionId: string) => `/sessions/${encodeURIComponent(sessionId)}/report`,
   result: (sessionId: string) => `/results/${encodeURIComponent(sessionId)}`,
 } as const;
 
@@ -43,10 +40,8 @@ export const ROUTE_PATTERNS = {
   participantEntry: '/play/:mode/participant',
   tutorial: '/play/:mode/tutorial',
   setup: '/play/:mode/setup',
-  sessionReport: '/sessions/:sessionId/report',
   session: '/sessions/:sessionId',
   result: '/results/:sessionId',
   participantHistory: '/participants/:participantId/history',
-  participantReport: '/participants/:participantId/report',
   participant: '/participants/:participantId',
 } as const;

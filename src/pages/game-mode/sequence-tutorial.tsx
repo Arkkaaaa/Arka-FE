@@ -187,7 +187,7 @@ function TutorialVisual({ fruit, mode, step, progress }: { fruit: FruitVariant; 
             : 30 + progress * 35;
   return (
     <div className="grid w-full max-w-xl place-items-center gap-5 p-4 text-center sm:p-6">
-      <SqueezableFruit fruit={fruit} showLabel={false} squeezePercent={grip} />
+      <SqueezableFruit fruit={fruit} kilograms={grip / 20} showLabel={false} squeezePercent={grip} />
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-between gap-4"><span className="text-sm font-black tracking-[0.08em] text-muted uppercase">Tekanan</span><strong className="text-2xl tabular-nums">{Math.round(grip)}%</strong></div>
         <div className="relative mt-3 h-3 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span aria-hidden className="absolute top-1/2 right-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div>
