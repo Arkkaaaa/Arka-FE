@@ -68,8 +68,8 @@ export function goNoGoStimulusAssetAt(stimulus: GoNoGoStimulus, assetIndex: numb
   return asset;
 }
 
-export function goNoGoTargetAudioUrl(stimulus: GoNoGoStimulus, assetIndex: number): string {
-  return `/audio/game-mode2/targets/${stimulus.toLowerCase()}-${assetIndex + 1}.m4a`;
+export function goNoGoTargetAudioUrl(stimulus: GoNoGoStimulus): string {
+  return `/audio/game-mode2/targets/${stimulus.toLowerCase()}.m4a`;
 }
 
 export const GO_NO_GO_IMAGE_URLS = Object.values(STIMULUS_ASSETS).flatMap((variants) =>

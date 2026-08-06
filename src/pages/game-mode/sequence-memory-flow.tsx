@@ -253,7 +253,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
 
   useEffect(() => {
     const audio = new Audio();
-    const transitionAudio = new Audio('/audio/game-mode2/next-question.m4a');
+    const transitionAudio = new Audio('/audio/game-mode2/targets/next-question.m4a');
     transitionAudio.preload = 'auto';
     targetAudioRef.current = audio;
     transitionAudioRef.current = transitionAudio;
@@ -282,7 +282,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
       return;
     }
     if (visual?.phase !== 'TARGET_PREVIEW') return;
-    audio.src = goNoGoTargetAudioUrl(visual.targetStimulus, visual.targetAssetIndex);
+    audio.src = goNoGoTargetAudioUrl(visual.targetStimulus);
     void audio.play().catch(() => undefined);
   }, [visual?.phase, visual?.questionNumber, visual?.targetAssetIndex, visual?.targetStimulus]);
 
