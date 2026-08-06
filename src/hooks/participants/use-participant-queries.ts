@@ -22,7 +22,7 @@ export function useParticipantQuery(participantId: string | undefined) {
     queryKey: QUERY_KEYS.participants.detail(participantId),
     queryFn: () => getParticipant(participantId ?? ''),
     enabled: Boolean(participantId),
-    refetchInterval: (query) => ['DETERMINISTIC', 'PENDING', 'PROCESSING'].includes(query.state.data?.aggregateSummary?.source ?? '') ? 3_000 : false,
+    refetchInterval: (query) => ['DETERMINISTIC', 'PENDING', 'PROCESSING'].includes(query.state.data?.aggregateSummary?.source ?? '') || query.state.data?.modeSummaries.some((summary) => ['PENDING', 'PROCESSING'].includes(summary.narrativeSummary?.source ?? '')) ? 3_000 : false,
   });
 }
 

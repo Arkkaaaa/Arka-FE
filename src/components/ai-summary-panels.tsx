@@ -1,5 +1,9 @@
+import { FileDown } from 'lucide-react';
 import { useId, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { AiSummaryDto } from '../schemas/index.ts';
+import { buttonClassName } from './ui/button/button.tsx';
+import { ROUTES } from '../constants/routes.ts';
 
 type Audience = 'participant' | 'clinician';
 
@@ -8,7 +12,7 @@ const AUDIENCES: readonly { id: Audience; label: string }[] = [
   { id: 'clinician', label: 'Dokter' },
 ];
 
-export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
+export function AiSummaryPanels({ sessionId, summary }: { sessionId?: string; summary: AiSummaryDto }) {
   const [audience, setAudience] = useState<Audience>('participant');
   const tabsId = useId();
   if (summary.status !== 'READY') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-white p-5 text-center font-bold text-muted">{summary.status === 'PENDING' ? 'Ringkasan sedang disiapkan.' : 'Ringkasan belum tersedia untuk sesi ini.'}</section>;
@@ -38,6 +42,7 @@ export function AiSummaryPanels({ summary }: { summary: AiSummaryDto }) {
       <div aria-labelledby={`${tabsId}-${audience}`} className="p-4 sm:p-5" id={`${tabsId}-panel`} role="tabpanel" tabIndex={0}>
         <p className="m-0 text-base leading-7 font-bold">{active.summaryText}</p>
         {active.observations.length > 0 && <ul className="mt-3 mb-0 grid gap-2 pl-5 text-sm leading-6 text-muted">{active.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>}
+        {sessionId && <div className="mt-5 flex justify-end"><Link className={buttonClassName('secondary')} target="_blank" to={`${ROUTES.sessionReport(sessionId)}?audience=${audience}`}><FileDown aria-hidden className="size-5" />Unduh PDF {audience === 'participant' ? 'peserta' : 'dokter'}</Link></div>}
       </div>
     </section>
   );
