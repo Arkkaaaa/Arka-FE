@@ -235,10 +235,13 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
   );
 }
 
+const NEXT_QUESTION_AUDIO_GAP_MS = 500;
+
 function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const targetAudioRef = useRef<HTMLAudioElement | null>(null);
   const transitionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const transitionQuestionRef = useRef<number | null>(null);
   const isTargetPreview = visual?.phase === 'TARGET_PREVIEW';
   const stimulus = (isTargetPreview ? visual?.targetStimulus : visual?.phase === 'STIMULUS' ? visual.stimulus : null) as GoNoGoStimulus | null | undefined;
   const assetIndex = isTargetPreview ? visual?.targetAssetIndex : visual?.phase === 'STIMULUS' ? visual.assetIndex : null;
@@ -272,19 +275,44 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   useEffect(() => {
     const audio = targetAudioRef.current;
     const transitionAudio = transitionAudioRef.current;
-    if (!audio || !transitionAudio) return;
-    audio.pause();
-    audio.currentTime = 0;
-    transitionAudio.pause();
-    transitionAudio.currentTime = 0;
-    if (visual?.phase === 'TRANSITION' && visual.questionNumber > 1 && visual.candidateIndex === null) {
-      void transitionAudio.play().catch(() => undefined);
-      return;
+    if (!audio || !transitionAudio || !visual) return;
+    let gapTimer: number | undefined;
+    const playTarget = () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = goNoGoTargetAudioUrl(visual.targetStimulus);
+      void audio.play().catch(() => undefined);
+    };
+    const scheduleTarget = () => {
+      gapTimer = window.setTimeout(playTarget, NEXT_QUESTION_AUDIO_GAP_MS);
+    };
+
+    if (visual.phase === 'TRANSITION' && visual.questionNumber > 1 && visual.candidateIndex === null) {
+      audio.pause();
+      audio.currentTime = 0;
+      if (transitionQuestionRef.current !== visual.questionNumber) {
+        transitionQuestionRef.current = visual.questionNumber;
+        transitionAudio.currentTime = 0;
+        void transitionAudio.play().catch(() => undefined);
+      }
+    } else if (visual.phase === 'TARGET_PREVIEW') {
+      if (transitionQuestionRef.current === visual.questionNumber && !transitionAudio.paused && !transitionAudio.ended) {
+        transitionAudio.addEventListener('ended', scheduleTarget, { once: true });
+      } else if (transitionQuestionRef.current === visual.questionNumber) {
+        scheduleTarget();
+      } else {
+        playTarget();
+      }
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
     }
-    if (visual?.phase !== 'TARGET_PREVIEW') return;
-    audio.src = goNoGoTargetAudioUrl(visual.targetStimulus);
-    void audio.play().catch(() => undefined);
-  }, [visual?.phase, visual?.questionNumber, visual?.targetAssetIndex, visual?.targetStimulus]);
+
+    return () => {
+      transitionAudio.removeEventListener('ended', scheduleTarget);
+      if (gapTimer !== undefined) window.clearTimeout(gapTimer);
+    };
+  }, [visual?.candidateIndex, visual?.phase, visual?.questionNumber, visual?.targetStimulus]);
 
   if (isTargetPreview) {
     return (

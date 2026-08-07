@@ -1,5 +1,9 @@
+import { useGSAP } from '@gsap/react';
 import { m, useReducedMotion } from 'framer-motion';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight } from 'lucide-react';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   athletesTrainingIllustration,
@@ -19,7 +23,10 @@ import {
 } from '../../assets/index.ts';
 import { ROUTES } from '../../constants/routes.ts';
 import { MarketingFooter, MarketingHeader } from '../marketing-shell/marketing-shell.tsx';
+import { PublicSmoothScroll } from '../public-smooth-scroll.tsx';
 import { buttonClassName } from '../ui/button/button.tsx';
+
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 const BENEFITS = [
   {
@@ -110,10 +117,43 @@ export function LandingContent({
   signOutError,
 }: LandingContentProps) {
   const reduceMotion = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement>(null);
   const hidden = reduceMotion ? 'visible' : 'hidden';
 
+  useGSAP(() => {
+    if (reduceMotion) return;
+    const media = gsap.matchMedia();
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.to('[data-gsap-hero-art]', {
+        yPercent: 9,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '[data-gsap-hero]',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 0.7,
+        },
+      });
+      gsap.utils.toArray<HTMLElement>('[data-gsap-float]').forEach((element, index) => {
+        gsap.to(element, {
+          y: index % 2 === 0 ? 34 : -34,
+          rotation: index % 2 === 0 ? 3 : -3,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: element.closest('section') ?? element,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: 0.9,
+          },
+        });
+      });
+    });
+    return () => media.revert();
+  }, { dependencies: [reduceMotion], scope: containerRef, revertOnUpdate: true });
+
   return (
-    <div className="min-h-dvh bg-white text-ink">
+    <PublicSmoothScroll>
+      <div className="min-h-dvh bg-white text-ink" ref={containerRef}>
       <a className="skip-link" href="#konten-utama">
         Lewati ke konten utama
       </a>
@@ -136,14 +176,16 @@ export function LandingContent({
       </p>
 
       <main className="outline-none" id="konten-utama" tabIndex={-1}>
-        <section className="relative isolate overflow-hidden bg-white">
+        <section className="relative isolate overflow-hidden bg-white" data-gsap-hero>
           <div
             aria-hidden
             className="landing-glow landing-glow-yellow -top-24 -left-24 size-96"
+            data-gsap-float
           />
           <div
             aria-hidden
             className="landing-glow landing-glow-soft right-0 bottom-0 size-72"
+            data-gsap-float
           />
           <div className="relative z-10 mx-auto grid min-h-[38rem] w-full max-w-[72rem] items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:py-18">
             <m.div
@@ -174,6 +216,7 @@ export function LandingContent({
 
             <m.img
               alt="Dua orang melakukan latihan pagi bersama"
+              data-gsap-hero-art
               animate="visible"
               initial={hidden}
               className="mx-auto max-h-[30rem] w-full object-contain"
@@ -189,7 +232,7 @@ export function LandingContent({
           className="relative isolate overflow-hidden px-5 py-16 sm:px-8 lg:py-22"
           id="manfaat"
         >
-          <div aria-hidden className="landing-ring -right-24 top-16 size-72" />
+          <div aria-hidden className="landing-ring -right-24 top-16 size-72" data-gsap-float />
           <div className="relative z-10 mx-auto w-full max-w-[72rem]">
             <m.div
               className="mx-auto max-w-2xl text-center"
@@ -232,7 +275,7 @@ export function LandingContent({
           className="relative isolate overflow-hidden bg-white px-5 py-16 sm:px-8 lg:py-22"
           id="latihan"
         >
-          <div aria-hidden className="landing-glow landing-glow-soft -left-32 top-20 size-96" />
+          <div aria-hidden className="landing-glow landing-glow-soft -left-32 top-20 size-96" data-gsap-float />
           <div className="relative z-10 mx-auto w-full max-w-[72rem]">
             <m.div
               className="mx-auto max-w-2xl text-center"
@@ -284,6 +327,7 @@ export function LandingContent({
           <div
             aria-hidden
             className="landing-glow landing-glow-yellow -right-28 bottom-0 size-96"
+            data-gsap-float
           />
           <m.div
             className="relative z-10 mx-auto grid w-full max-w-[72rem] items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]"
@@ -360,7 +404,8 @@ export function LandingContent({
         </section>
       </main>
 
-      <MarketingFooter />
-    </div>
+        <MarketingFooter />
+      </div>
+    </PublicSmoothScroll>
   );
 }

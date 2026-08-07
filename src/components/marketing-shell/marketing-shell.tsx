@@ -8,6 +8,7 @@ import { useSignOutMutation } from '../../hooks/auth/use-sign-out-mutation.ts';
 import { cn } from '../../lib/utils.ts';
 import { Brand } from '../brand/brand.tsx';
 import { AccountMenu } from '../account-menu/account-menu.tsx';
+import { PublicSmoothScroll } from '../public-smooth-scroll.tsx';
 import { buttonClassName } from '../ui/button/button.tsx';
 
 const NAVIGATION = [
@@ -204,30 +205,32 @@ export function MarketingPage({ children }: { children: ReactNode }) {
   const user = session.data;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-white text-ink">
-      <a className="skip-link" href="#konten-utama">
-        Lewati ke konten utama
-      </a>
-      <MarketingHeader
-        accountEmail={user?.user.email ?? ''}
-        accountImage={user?.user.image ?? null}
-        accountName={user?.user.name ?? ''}
-        institutionName={user?.institution.name ?? ''}
-        isSignedIn={Boolean(user)}
-        isSigningOut={signOut.isPending}
-        onSignOut={() => {
-          if (user) signOut.mutate(user);
-        }}
-      />
-      {signOut.isError && (
-        <p className="mx-auto w-full max-w-[72rem] px-5 pt-3 text-base font-bold leading-6 text-danger sm:px-8" role="alert">
-          {messageOf(signOut.error)}
-        </p>
-      )}
-      <main className="flex-1 outline-none" id="konten-utama" tabIndex={-1}>
-        {children}
-      </main>
-      <MarketingFooter />
-    </div>
+    <PublicSmoothScroll>
+      <div className="flex min-h-dvh flex-col bg-white text-ink">
+        <a className="skip-link" href="#konten-utama">
+          Lewati ke konten utama
+        </a>
+        <MarketingHeader
+          accountEmail={user?.user.email ?? ''}
+          accountImage={user?.user.image ?? null}
+          accountName={user?.user.name ?? ''}
+          institutionName={user?.institution.name ?? ''}
+          isSignedIn={Boolean(user)}
+          isSigningOut={signOut.isPending}
+          onSignOut={() => {
+            if (user) signOut.mutate(user);
+          }}
+        />
+        {signOut.isError && (
+          <p className="mx-auto w-full max-w-[72rem] px-5 pt-3 text-base font-bold leading-6 text-danger sm:px-8" role="alert">
+            {messageOf(signOut.error)}
+          </p>
+        )}
+        <main className="flex-1 outline-none" id="konten-utama" tabIndex={-1}>
+          {children}
+        </main>
+        <MarketingFooter />
+      </div>
+    </PublicSmoothScroll>
   );
 }
