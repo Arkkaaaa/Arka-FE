@@ -303,7 +303,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
       } else {
         playTarget();
       }
-    } else {
+    } else if (visual.phase !== 'TRANSITION' || visual.candidateIndex === null) {
       audio.pause();
       audio.currentTime = 0;
     }

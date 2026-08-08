@@ -42,6 +42,9 @@ export function AiSummaryPanels({ sessionId, summary }: { sessionId?: string; su
   if (summary.status === 'PENDING') return <SummaryLoading />;
   if (summary.status !== 'READY') return <section aria-live="polite" className="rounded-md border-2 border-divider bg-white p-5 text-center font-bold text-muted">Ringkasan belum tersedia untuk sesi ini.</section>;
   const active = summary[audience];
+  const participantPoints = summary.participant.observations.length > 0
+    ? summary.participant.observations
+    : [summary.participant.summaryText];
 
   return (
     <section aria-labelledby={`${tabsId}-title`} className="overflow-hidden rounded-md border-2 border-divider bg-white">
@@ -65,8 +68,7 @@ export function AiSummaryPanels({ sessionId, summary }: { sessionId?: string; su
         </div>
       </div>
       <div aria-labelledby={`${tabsId}-${audience}`} className="p-4 sm:p-5" id={`${tabsId}-panel`} role="tabpanel" tabIndex={0}>
-        <p className="m-0 text-base leading-7 font-bold">{normalizeSummaryText(active.summaryText)}</p>
-        {active.observations.length > 0 && <ul className="mt-3 mb-0 grid gap-2 pl-5 text-sm leading-6 text-muted">{active.observations.map((observation) => <li key={observation}>{normalizeSummaryText(observation)}</li>)}</ul>}
+        {audience === 'participant' ? <div><div className="flex items-center gap-3 rounded-sm bg-brand-soft px-4 py-3"><Sparkles aria-hidden className="size-5 shrink-0 text-accent" /><p className="m-0 font-black">Poin permainanmu</p></div><ul className="mt-4 mb-0 grid list-none gap-3 p-0">{participantPoints.map((point, index) => <li className="flex items-start gap-3 rounded-sm border-2 border-divider bg-canvas/45 p-4" key={`${index}-${point}`}><span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-accent font-black text-white">{index + 1}</span><span className="pt-1 text-base leading-6 font-bold">{normalizeSummaryText(point)}</span></li>)}</ul></div> : <><p className="m-0 text-base leading-7 font-bold">{normalizeSummaryText(active.summaryText)}</p>{active.observations.length > 0 && <ul className="mt-3 mb-0 grid gap-2 pl-5 text-sm leading-6 text-muted">{active.observations.map((observation) => <li key={observation}>{normalizeSummaryText(observation)}</li>)}</ul>}</>}
         {sessionId && <div className="mt-5 flex justify-end"><a className={buttonClassName('secondary')} href={apiUrl(API_ENDPOINTS.games.sessionReport(sessionId, audience))}><FileDown aria-hidden className="size-5" />Unduh PDF {audience === 'participant' ? 'peserta' : 'dokter'}</a></div>}
       </div>
     </section>
