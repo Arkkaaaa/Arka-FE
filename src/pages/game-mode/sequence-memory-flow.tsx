@@ -337,7 +337,7 @@ function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
     );
   }
 
-  return <div className="mx-auto w-full max-w-5xl p-6 sm:p-8"><div className="flex justify-start">{timer}</div><div className="grid min-h-[27rem] place-items-center text-center">{visual?.candidateIndex === null && <p className="m-0 text-3xl font-black">Soal berikutnya</p>}</div></div>;
+  return <div className="mx-auto w-full max-w-5xl p-6 sm:p-8"><div className="flex justify-start">{timer}</div><div className="grid min-h-[27rem] place-items-center text-center">{visual?.candidateIndex === null && <p className="m-0 text-3xl font-black">Soal selanjutnya</p>}</div></div>;
 }
 
 function GameBoard({ encouragementAudioRef, encouragementStateRef, fruit, mode, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; mode: GameMode; snapshot: SessionSnapshot }) {

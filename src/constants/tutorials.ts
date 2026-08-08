@@ -94,7 +94,7 @@ export const tutorials: Readonly<Record<GameMode, TutorialDefinition>> = {
         title: 'Pilih gambar yang sama',
         instruction: 'Saat gambar dari jenis target muncul, genggam alat satu kali.',
         visual: 'Salah satu gambar Wayang muncul di antara gambar lain.',
-        caption: 'Genggaman langsung melanjutkan ke soal berikutnya.',
+        caption: 'Genggaman langsung melanjutkan ke soal selanjutnya.',
         audioSrc: '/tutorial/step-mode2/step4.m4a',
       },
       {
