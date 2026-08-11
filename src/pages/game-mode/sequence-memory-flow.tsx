@@ -26,7 +26,7 @@ import {
   type GameParticipantIdentity,
 } from './sequence-tutorial.tsx';
 
-type SessionSnapshot = Extract<AppServerMessage, { type: 'session.snapshot' }>['payload'];
+export type SessionSnapshot = Extract<AppServerMessage, { type: 'session.snapshot' }>['payload'];
 type SetupSnapshot = Extract<AppServerMessage, { type: 'setup.snapshot' }>['payload'];
 
 type GripSample = { elapsedSecond: number; gripPercent: number; kilograms: number };
@@ -81,7 +81,7 @@ function GripLineChart({ samples, compact = false }: { samples: readonly GripSam
   );
 }
 
-function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
+export function SequenceBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'SEQUENCE_MEMORY' ? snapshot.visual : null;
   const activeTile = SEQUENCE_TILES.find((tile) => tile.code === visual?.activeItem);
   const lastCueId = useRef<string | null>(null);
@@ -156,7 +156,7 @@ const ENCOURAGEMENT_CUES = {
 
 type EncouragementCue = { readonly src: string; readonly text: string };
 
-interface EncouragementState {
+export interface EncouragementState {
   started: boolean;
   halfway: boolean;
   finalFive: boolean;
@@ -178,22 +178,20 @@ function playEncouragement(audio: HTMLAudioElement, src: string): void {
   void audio.play().catch(() => undefined);
 }
 
-function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; snapshot: SessionSnapshot }) {
+export function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, snapshot }: { encouragementAudioRef: MutableRefObject<HTMLAudioElement | null>; encouragementStateRef: MutableRefObject<EncouragementState>; fruit: FruitVariant; snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'MOTOR_GRIP' ? snapshot.visual : null;
   const encouragementState = encouragementStateRef.current;
-  const [encouragement, setEncouragement] = useState('Genggam dengan nyaman, lalu pertahankan.');
   const kilograms = visual?.kilograms ?? 0;
   const grip = Math.round(Math.min(100, kilograms / 5 * 100));
-  const fillLabel = kilograms < 2 ? '¼ gelas' : kilograms < 3 ? '½ gelas' : kilograms < 4 ? '¾ gelas' : kilograms <= 5 ? 'Penuh' : 'Luber';
   const samples = visual?.gripSamples ?? [];
-  const averageKilograms = samples.length > 0 ? samples.reduce((sum, sample) => sum + sample.kilograms, 0) / samples.length : kilograms;
   const peakKilograms = Math.max(kilograms, ...samples.map((sample) => sample.kilograms));
+  const fillLabel = peakKilograms < 2 ? '¼ gelas' : peakKilograms < 3 ? '½ gelas' : peakKilograms < 4 ? '¾ gelas' : peakKilograms <= 5 ? 'Penuh' : 'Luber';
+  const averageKilograms = samples.length > 0 ? samples.reduce((sum, sample) => sum + sample.kilograms, 0) / samples.length : kilograms;
   const estimatedScore = Math.round((Math.min(1, averageKilograms / 5) * 0.7 + Math.min(1, peakKilograms / 5) * 0.3) * 1000);
 
   function triggerCue(audio: HTMLAudioElement, cues: readonly EncouragementCue[]) {
     const cue = randomCue(cues, encouragementState.lastCueSrc);
     encouragementState.lastCueSrc = cue.src;
-    setEncouragement(cue.text);
     playEncouragement(audio, cue.src);
   }
 
@@ -228,7 +226,7 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-4"><SessionCountdown remainingMs={visual?.remainingMs ?? 30_000} totalMs={30_000} /><div className="grid grid-cols-2 gap-3"><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Isi gelas</span><strong className="text-3xl text-[#a94f12]">{fillLabel}</strong></div><div className="rounded-md bg-[#fff4e7] px-5 py-3 text-right"><span className="block text-sm font-black text-muted">Beban saat ini</span><strong className="text-3xl tabular-nums text-[#a94f12]">{kilograms.toFixed(2)} kg</strong></div></div></div>
       <div className="mt-5 grid items-stretch gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="grid min-h-[28rem] place-items-center p-6 text-center"><div><SqueezableFruit fruit="ORANGE" kilograms={kilograms} showLabel={false} squeezePercent={grip} /><p className="mt-3 mb-0 text-xl font-bold text-muted" aria-live="polite">{encouragement}</p></div></div>
+        <div className="grid min-h-[28rem] place-items-center p-6 text-center"><SqueezableFruit fruit="ORANGE" kilograms={peakKilograms} showLabel={false} squeezePercent={grip} /></div>
         <div className="grid gap-5"><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Kekuatan relatif</span><strong className="text-4xl">{grip}%</strong></div><div aria-hidden className="relative mt-4 h-4 rounded-full bg-divider"><div className="absolute inset-y-0 left-0 transition-[width] duration-100" style={{ width: `${grip}%` }}><div className="size-full rounded-full bg-gradient-to-r from-[#f1c232] via-[#ee8f2a] to-[#dc4c3f]" /><span className="absolute top-1/2 right-0 size-7 translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#d67b1f] shadow-[0_2px_0_rgba(23,23,17,0.22)]" /></div></div></div><div className="rounded-md border-2 border-divider bg-white p-5"><div className="flex items-end justify-between gap-4"><span className="font-black text-muted">Perkiraan poin kekuatan</span><strong className="text-3xl">{estimatedScore}</strong></div><p className="mt-2 mb-0 text-sm font-bold text-muted">Dihitung dari kekuatan rata-rata dan puncak selama 30 detik.</p></div><div className="rounded-md border-2 border-divider bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="font-black">Grafik genggaman langsung</span><span className="text-sm font-bold text-muted">kg per detik</span></div><div className="mt-2"><GripLineChart compact samples={samples} /></div></div></div>
       </div>
     </div>
@@ -237,7 +235,7 @@ function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, fruit, s
 
 const NEXT_QUESTION_AUDIO_GAP_MS = 500;
 
-function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
+export function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const targetAudioRef = useRef<HTMLAudioElement | null>(null);
   const transitionAudioRef = useRef<HTMLAudioElement | null>(null);

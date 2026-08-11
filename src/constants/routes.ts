@@ -30,6 +30,7 @@ export const ROUTES = {
   participantHistory: (participantId: string) =>
     `/participants/${encodeURIComponent(participantId)}/history`,
   participantEntry: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/participant`,
+  preview: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/preview`,
   tutorial: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/tutorial`,
   setup: (mode: GameMode) => `/play/${GAME_MODE_SLUGS[mode]}/setup`,
   session: (sessionId: string) => `/sessions/${encodeURIComponent(sessionId)}`,
@@ -38,6 +39,7 @@ export const ROUTES = {
 
 export const ROUTE_PATTERNS = {
   participantEntry: '/play/:mode/participant',
+  preview: '/play/:mode/preview',
   tutorial: '/play/:mode/tutorial',
   setup: '/play/:mode/setup',
   session: '/sessions/:sessionId',

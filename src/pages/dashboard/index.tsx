@@ -192,7 +192,10 @@ export function DashboardPage() {
                   <div className="flex items-center gap-3"><img alt="" aria-hidden className="size-11" src={mode.emoji} /><h3 className="m-0 text-2xl font-black">{mode.title}</h3></div>
                   <p className="mt-3 mb-0 flex-1 text-base leading-7 text-muted">{mode.detail}</p>
                   <p className="mt-4 mb-0 text-sm font-black text-muted">{mode.device}</p>
-                  <Button className="mt-5 w-full" onClick={() => navigate(ROUTES.participantEntry(mode.mode))}>Buka mode</Button>
+                  <div className="mt-5 grid gap-3">
+                    <Button className="w-full" onClick={() => navigate(ROUTES.preview(mode.mode))} variant="secondary">Coba tanpa alat</Button>
+                    <Button className="w-full" onClick={() => navigate(ROUTES.participantEntry(mode.mode))}>Buka mode</Button>
+                  </div>
                 </div>
               </article>
             ))}

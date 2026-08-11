@@ -131,7 +131,8 @@ export function SqueezableFruit({ fruit, squeezePercent, kilograms, showLabel = 
 
   useEffect(() => {
     if (kilograms !== undefined) {
-      setFillPercent(kilograms < 2 ? 25 : kilograms < 3 ? 50 : kilograms < 4 ? 75 : kilograms <= 5 ? 92 : 100);
+      const nextFill = kilograms < 2 ? 25 : kilograms < 3 ? 50 : kilograms < 4 ? 75 : kilograms <= 5 ? 92 : 100;
+      setFillPercent((current) => Math.max(current, nextFill));
       return;
     }
     if (!juiceActive) return;
