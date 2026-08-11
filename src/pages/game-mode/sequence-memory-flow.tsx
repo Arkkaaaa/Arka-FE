@@ -235,7 +235,7 @@ export function MotorGripBoard({ encouragementAudioRef, encouragementStateRef, f
 
 const NEXT_QUESTION_AUDIO_GAP_MS = 500;
 
-export function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
+export function GoNoGoBoard({ audioElements, snapshot }: { audioElements?: { target: HTMLAudioElement; transition: HTMLAudioElement }; snapshot: SessionSnapshot }) {
   const visual = snapshot.visual?.mode === 'GO_NO_GO' ? snapshot.visual : null;
   const targetAudioRef = useRef<HTMLAudioElement | null>(null);
   const transitionAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -253,22 +253,25 @@ export function GoNoGoBoard({ snapshot }: { snapshot: SessionSnapshot }) {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio();
-    const transitionAudio = new Audio('/audio/game-mode2/targets/next-question.m4a');
+    const audio = audioElements?.target ?? new Audio();
+    const transitionAudio = audioElements?.transition ?? new Audio('/audio/game-mode2/targets/next-question.m4a');
+    audio.preload = 'auto';
     transitionAudio.preload = 'auto';
     targetAudioRef.current = audio;
     transitionAudioRef.current = transitionAudio;
     return () => {
       audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
       transitionAudio.pause();
-      transitionAudio.removeAttribute('src');
-      transitionAudio.load();
+      if (!audioElements) {
+        audio.removeAttribute('src');
+        audio.load();
+        transitionAudio.removeAttribute('src');
+        transitionAudio.load();
+      }
       targetAudioRef.current = null;
       transitionAudioRef.current = null;
     };
-  }, []);
+  }, [audioElements]);
 
   useEffect(() => {
     const audio = targetAudioRef.current;

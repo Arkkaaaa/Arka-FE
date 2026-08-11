@@ -3,7 +3,6 @@ import { ArrowLeft, Hand, Pause, Play, RotateCcw } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import type { GameMetrics } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
-import { AiSummaryPanels } from '../../components/ai-summary-panels.tsx';
 import { GameResultChart } from '../../components/game-result-charts.tsx';
 import { ResultStats } from '../../components/result-stats.tsx';
 import { GAME_MODES } from '../../constants/game-modes.ts';
@@ -54,7 +53,7 @@ function PreviewResult({ metrics, onReplay, score }: { metrics: GameMetrics; onR
   return (
     <section aria-labelledby="preview-result-title" className="mx-auto grid w-full max-w-[78rem] gap-3 py-5">
       <header><p className="landing-eyebrow">Preview selesai</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="preview-result-title">Hasil sesi Peserta Demo</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil simulasi ini tidak disimpan dan bukan diagnosis atau rekomendasi terapi.</p></header>
-      <div><ResultStats metrics={metrics} score={score} /><GameResultChart metrics={metrics} /><div className="mt-3"><AiSummaryPanels summary={{ status: 'UNAVAILABLE' }} /></div></div>
+      <div><ResultStats metrics={metrics} score={score} /><GameResultChart metrics={metrics} /></div>
       <div className="flex flex-wrap gap-2"><Button onClick={onReplay}><RotateCcw aria-hidden className="size-5" />Main lagi</Button><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
     </section>
   );
@@ -213,6 +212,7 @@ function GoNoGoPreview() {
   const [goPhase, setGoPhase] = useState<GoPhase>('TARGET_PREVIEW');
   const [correctTrials, setCorrectTrials] = useState(0);
   const [outcomes, setOutcomes] = useState<GoOutcome[]>([]);
+  const [audioElements] = useState(() => ({ target: new Audio(goNoGoTargetAudioUrl(GO_QUESTIONS[0]!.target)), transition: new Audio('/audio/game-mode2/targets/next-question.m4a') }));
   const candidateStartedAtRef = useRef(0);
   const selected = GAME_MODES[1];
   const question = GO_QUESTIONS[questionIndex]!;
@@ -262,8 +262,16 @@ function GoNoGoPreview() {
   }, [candidateIndex, finishQuestion, goPhase, question.candidates.length, questionIndex, stage]);
 
   function start() {
-    resumeGameAudio();
-    primeHtmlAudio(goNoGoTargetAudioUrl(GO_QUESTIONS[0]!.target));
+    void resumeGameAudio();
+    for (const audio of Object.values(audioElements)) {
+      audio.preload = 'auto';
+      audio.volume = 0;
+      void audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      }).catch(() => { audio.volume = 1; });
+    }
     setElapsedMs(0);
     setQuestionIndex(0);
     setCandidateIndex(0);
@@ -309,16 +317,19 @@ function GoNoGoPreview() {
   if (stage === 'paused') return <Paused onFinish={() => setStage('finished')} onResume={() => setStage('playing')} title={selected.title} />;
 
   const gripButton = <Button className="min-h-20 w-full bg-[#3978bd] px-9 text-xl text-white shadow-[0_6px_0_#24598f] hover:bg-[#286aa9] sm:w-auto" disabled={goPhase !== 'STIMULUS'} onClick={grip}><Hand aria-hidden className="size-8" />Genggam alat</Button>;
-  return <PlayingShell input={gripButton} onFinish={() => setStage('finished')} onPause={() => setStage('paused')} title={selected.title}><GoNoGoBoard snapshot={snapshot} /></PlayingShell>;
+  return <PlayingShell input={gripButton} onFinish={() => setStage('finished')} onPause={() => setStage('paused')} title={selected.title}><GoNoGoBoard audioElements={audioElements} snapshot={snapshot} /></PlayingShell>;
 }
 
 type SequenceCode = (typeof SEQUENCE_TILES)[number]['code'];
 type SequencePhase = 'EXAMPLE' | 'RESPONSE' | 'FEEDBACK';
 
 const SEQUENCE_LEVELS: readonly (readonly SequenceCode[])[] = [
+  ['RED'],
   ['RED', 'BLUE'],
-  ['GREEN', 'YELLOW', 'RED'],
-  ['BLUE', 'RED', 'GREEN', 'YELLOW'],
+  ['RED', 'BLUE', 'GREEN'],
+  ['RED', 'BLUE', 'GREEN', 'YELLOW'],
+  ['RED', 'BLUE', 'GREEN', 'YELLOW', 'BLUE'],
+  ['RED', 'BLUE', 'GREEN', 'YELLOW', 'BLUE', 'RED'],
 ];
 
 function SequenceMemoryPreview() {
@@ -332,8 +343,11 @@ function SequenceMemoryPreview() {
   const [feedback, setFeedback] = useState<'CORRECT' | 'REPEAT' | null>(null);
   const [completedLevels, setCompletedLevels] = useState(0);
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [timedOutAttempts, setTimedOutAttempts] = useState(0);
   const [latencies, setLatencies] = useState<{ level: number; latencyMs: number }[]>([]);
+  const [attemptNumber, setAttemptNumber] = useState(0);
   const responseStartedAtRef = useRef(0);
+  const firstResponseLatencyRef = useRef<number | null>(null);
   const selected = GAME_MODES[2];
   const sequence = SEQUENCE_LEVELS[levelIndex]!;
 
@@ -362,39 +376,57 @@ function SequenceMemoryPreview() {
 
   useEffect(() => {
     if (stage !== 'playing' || phase !== 'EXAMPLE') return;
-    let cursor = 0;
-    const firstCue = window.setTimeout(() => setCueIndex(0), 700);
-    const timer = window.setInterval(() => {
-      cursor += 1;
-      if (cursor >= sequence.length * 2) {
-        window.clearInterval(timer);
-        setCueIndex(null);
-        responseStartedAtRef.current = performance.now();
-        setPhase('RESPONSE');
-        return;
-      }
-      setCueIndex(cursor % 2 === 0 ? cursor / 2 : null);
-    }, 650);
-    return () => {
-      window.clearTimeout(firstCue);
-      window.clearInterval(timer);
-    };
-  }, [levelIndex, phase, sequence.length, stage]);
+    const timers: number[] = [];
+    setCueIndex(null);
+    sequence.forEach((_, index) => {
+      const startsAt = 1_200 + index * 1_250;
+      timers.push(window.setTimeout(() => setCueIndex(index), startsAt));
+      timers.push(window.setTimeout(() => setCueIndex(null), startsAt + 900));
+    });
+    const exampleDuration = 1_200 + sequence.length * 900 + Math.max(0, sequence.length - 1) * 350;
+    timers.push(window.setTimeout(() => {
+      responseStartedAtRef.current = performance.now();
+      firstResponseLatencyRef.current = null;
+      setPhase('RESPONSE');
+    }, exampleDuration));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [attemptNumber, levelIndex, phase, sequence, stage]);
 
   useEffect(() => {
     if (stage !== 'playing' || phase !== 'FEEDBACK') return;
     const timer = window.setTimeout(() => {
-      if (feedback === 'REPEAT') beginExample();
-    }, 900);
+      if (feedback === 'REPEAT') {
+        setAttemptNumber((current) => current + 1);
+        beginExample();
+      }
+    }, 750);
     return () => window.clearTimeout(timer);
   }, [beginExample, feedback, phase, stage]);
 
+  useEffect(() => {
+    if (stage !== 'playing' || phase !== 'RESPONSE') return;
+    const timer = window.setTimeout(() => {
+      const nextAttempts = remainingAttempts - 1;
+      setTimedOutAttempts((current) => current + 1);
+      setRemainingAttempts(nextAttempts);
+      if (nextAttempts <= 0) {
+        setStage('finished');
+        return;
+      }
+      setFeedback('REPEAT');
+      setPhase('FEEDBACK');
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [phase, remainingAttempts, stage]);
+
   function start() {
-    resumeGameAudio();
+    void resumeGameAudio();
     setLevelIndex(0);
     setCompletedLevels(0);
     setWrongAttempts(0);
+    setTimedOutAttempts(0);
     setLatencies([]);
+    setAttemptNumber(0);
     setRemainingAttempts(3);
     setResponseIndex(0);
     setFeedback(null);
@@ -405,6 +437,7 @@ function SequenceMemoryPreview() {
 
   function press(code: SequenceCode) {
     if (stage !== 'playing' || phase !== 'RESPONSE') return;
+    if (responseIndex === 0 && firstResponseLatencyRef.current === null) firstResponseLatencyRef.current = Math.max(0, performance.now() - responseStartedAtRef.current);
     if (code !== sequence[responseIndex]) {
       const nextAttempts = remainingAttempts - 1;
       setWrongAttempts((current) => current + 1);
@@ -423,7 +456,7 @@ function SequenceMemoryPreview() {
       setFeedback('CORRECT');
       return;
     }
-    const latencyMs = Math.max(0, performance.now() - responseStartedAtRef.current);
+    const latencyMs = firstResponseLatencyRef.current ?? Math.max(0, performance.now() - responseStartedAtRef.current);
     setLatencies((current) => [...current, { level: sequence.length, latencyMs }]);
     setCompletedLevels((current) => current + 1);
     if (levelIndex >= SEQUENCE_LEVELS.length - 1) {
@@ -432,13 +465,14 @@ function SequenceMemoryPreview() {
     }
     setLevelIndex((current) => current + 1);
     setRemainingAttempts(3);
+    setAttemptNumber(0);
     beginExample();
   }
 
-  const sequenceMetrics: Extract<GameMetrics, { mode: 'SEQUENCE_MEMORY' }> = { mode: 'SEQUENCE_MEMORY', maxSequenceLength: completedLevels > 0 ? SEQUENCE_LEVELS[Math.min(completedLevels - 1, SEQUENCE_LEVELS.length - 1)]!.length : 0, completedLevels, wrongAttempts, timedOutAttempts: 0, multiButtonAttempts: 0, meanFirstResponseMs: latencies.length > 0 ? latencies.reduce((total, item) => total + item.latencyMs, 0) / latencies.length : null, meanInterButtonMs: null, levelLatencies: latencies, completionReason: completedLevels >= SEQUENCE_LEVELS.length ? 'LEVEL_CAP_REACHED' : 'LIVES_EXHAUSTED' };
-  const sequenceScore = Math.max(0, Math.min(1000, 125 * sequenceMetrics.maxSequenceLength + 20 * completedLevels - 50 * wrongAttempts));
+  const sequenceMetrics: Extract<GameMetrics, { mode: 'SEQUENCE_MEMORY' }> = { mode: 'SEQUENCE_MEMORY', maxSequenceLength: completedLevels > 0 ? SEQUENCE_LEVELS[Math.min(completedLevels - 1, SEQUENCE_LEVELS.length - 1)]!.length : 0, completedLevels, wrongAttempts, timedOutAttempts, multiButtonAttempts: 0, meanFirstResponseMs: latencies.length > 0 ? latencies.reduce((total, item) => total + item.latencyMs, 0) / latencies.length : null, meanInterButtonMs: null, levelLatencies: latencies, completionReason: completedLevels >= SEQUENCE_LEVELS.length ? 'LEVEL_CAP_REACHED' : 'LIVES_EXHAUSTED' };
+  const sequenceScore = Math.max(0, Math.min(1000, 125 * sequenceMetrics.maxSequenceLength + 20 * completedLevels - 50 * wrongAttempts - 25 * timedOutAttempts));
   const activeItem = phase === 'EXAMPLE' && cueIndex !== null ? sequence[cueIndex] ?? null : null;
-  const snapshot: SessionSnapshot = { status: 'PLAYING', mode: 'SEQUENCE_MEMORY', displayName: 'Peserta Demo', countdown: null, result: null, message: 'Permainan berlangsung', visual: { mode: 'SEQUENCE_MEMORY', phase, activeItem, activeIndex: cueIndex, cueId: activeItem && cueIndex !== null ? `${levelIndex}:${cueIndex}` : null, sequenceLength: sequence.length, responseIndex, remainingAttempts, errorIndex: feedback === 'REPEAT' ? responseIndex : null, feedback } };
+  const snapshot: SessionSnapshot = { status: 'PLAYING', mode: 'SEQUENCE_MEMORY', displayName: 'Peserta Demo', countdown: null, result: null, message: 'Permainan berlangsung', visual: { mode: 'SEQUENCE_MEMORY', phase, activeItem, activeIndex: cueIndex, cueId: activeItem && cueIndex !== null ? `${levelIndex}:${attemptNumber}:${cueIndex}` : null, sequenceLength: sequence.length, responseIndex, remainingAttempts, errorIndex: feedback === 'REPEAT' ? responseIndex : null, feedback } };
 
   if (stage === 'idle') return <Idle illustration={selected.illustration} mode="SEQUENCE_MEMORY" onStart={start} title={selected.title} />;
   if (stage === 'countdown') return <Countdown value={countdown} />;
@@ -453,5 +487,5 @@ export function GamePreviewPage() {
   const { mode: modeSlug } = useParams();
   const mode = gameModeFromSlug(modeSlug);
   if (!mode) return <Navigate replace to={ROUTES.dashboard} />;
-  return <div className="relative h-dvh min-h-0 w-full overflow-hidden bg-white px-4 py-3 text-ink sm:px-8 lg:px-12"><main className="h-full min-h-0 outline-none" id="preview-main" tabIndex={-1}>{mode === 'MOTOR_GRIP' ? <MotorGripPreview /> : mode === 'GO_NO_GO' ? <GoNoGoPreview /> : <SequenceMemoryPreview />}</main></div>;
+  return <div className="relative min-h-dvh w-full overflow-x-hidden bg-white px-4 py-3 text-ink sm:px-8 lg:px-12"><main className="min-h-[calc(100dvh-1.5rem)] outline-none" id="preview-main" tabIndex={-1}>{mode === 'MOTOR_GRIP' ? <MotorGripPreview /> : mode === 'GO_NO_GO' ? <GoNoGoPreview /> : <SequenceMemoryPreview />}</main></div>;
 }

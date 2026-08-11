@@ -24,29 +24,33 @@ function getAudioContext(): AudioContext | null {
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
   if (!AudioContextClass) return null;
   sharedAudioContext ??= new AudioContextClass();
-  if (sharedAudioContext.state === 'suspended') void sharedAudioContext.resume();
   return sharedAudioContext;
 }
 
-export function resumeGameAudio(): void {
-  void getAudioContext()?.resume();
+export async function resumeGameAudio(): Promise<void> {
+  const context = getAudioContext();
+  if (context?.state === 'suspended') await context.resume();
 }
 
 export function playSequenceTone(frequency: number, durationMs = 220): void {
   const context = getAudioContext();
   if (!context) return;
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  const now = context.currentTime;
-  oscillator.type = 'sine';
-  oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start(now);
-  oscillator.stop(now + durationMs / 1000 + 0.02);
+  const play = () => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.28, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + durationMs / 1000 + 0.02);
+  };
+  if (context.state === 'suspended') void context.resume().then(play);
+  else play();
 }
 
 export function playCountdownTone(value: number): void {
