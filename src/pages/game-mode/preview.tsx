@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, Hand, Pause, Play, RotateCcw } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import type { GameMetrics } from '../../schemas/index.ts';
+import type { AiSummaryDto, GameMetrics } from '../../schemas/index.ts';
 import { Button, buttonClassName } from '../../components/index.ts';
+import { AiSummaryPanels } from '../../components/ai-summary-panels.tsx';
 import { GameResultChart } from '../../components/game-result-charts.tsx';
 import { ResultStats } from '../../components/result-stats.tsx';
 import { GAME_MODES } from '../../constants/game-modes.ts';
@@ -49,13 +50,22 @@ function Countdown({ value }: { value: number }) {
   );
 }
 
+function previewSummary(metrics: GameMetrics, score: number): AiSummaryDto {
+  if (metrics.mode === 'MOTOR_GRIP') return { status: 'READY', participant: { summaryText: `Anda menyelesaikan latihan genggaman dengan skor ${score}. Beban tertinggi mencapai ${metrics.peakKilograms.toFixed(2)} kilogram.`, observations: [`Beban rata-rata ${metrics.averageKilograms.toFixed(2)} kilogram.`, `Tahanan terpanjang ${(metrics.continuousHoldMs / 1000).toFixed(1)} detik.`, metrics.targetCompleted ? 'Target kekuatan berhasil tercapai.' : 'Target kekuatan belum tercapai pada sesi ini.'] }, clinician: { summaryText: `Preview Motor Grip menghasilkan skor ${score} dengan puncak ${metrics.peakKilograms.toFixed(2)} kg dan rata-rata ${metrics.averageKilograms.toFixed(2)} kg.`, observations: [`Durasi sesi ${(metrics.sessionElapsedMs / 1000).toFixed(1)} detik.`, `Waktu pada atau di atas target ${(metrics.timeAtOrAboveTargetMs / 1000).toFixed(1)} detik.`, 'Data ini berasal dari input simulasi, bukan sensor IoT.'] } };
+  if (metrics.mode === 'GO_NO_GO') return { status: 'READY', participant: { summaryText: `Anda menyelesaikan latihan perhatian dengan skor ${score} dan akurasi ${Math.round(metrics.accuracyPercent)} persen.`, observations: [`Respons benar ${metrics.hits} kali.`, `Target terlewat ${metrics.misses} kali.`, `Genggaman keliru ${metrics.falsePositives} kali.`] }, clinician: { summaryText: `Preview Go-No-Go menghasilkan akurasi ${Math.round(metrics.accuracyPercent)}% pada ${metrics.totalTrials} soal.`, observations: [`Hit ${metrics.hits}, miss ${metrics.misses}, false positive ${metrics.falsePositives}.`, `Rata-rata reaksi ${metrics.meanHitReactionMs === null ? 'belum tersedia' : `${Math.round(metrics.meanHitReactionMs)} ms`}.`, 'Data ini berasal dari input simulasi, bukan sensor IoT.'] } };
+  return { status: 'READY', participant: { summaryText: `Anda menyelesaikan latihan memori dengan skor ${score} hingga urutan ${metrics.maxSequenceLength} warna.`, observations: [`Level selesai ${metrics.completedLevels}.`, `Percobaan salah ${metrics.wrongAttempts}.`, `Kehabisan waktu ${metrics.timedOutAttempts} kali.`] }, clinician: { summaryText: `Preview Sequence Memory mencapai rentang maksimum ${metrics.maxSequenceLength} dengan ${metrics.completedLevels} level selesai.`, observations: [`Percobaan salah ${metrics.wrongAttempts}.`, `Rata-rata respons pertama ${metrics.meanFirstResponseMs === null ? 'belum tersedia' : `${Math.round(metrics.meanFirstResponseMs)} ms`}.`, 'Data ini berasal dari tombol layar, bukan perangkat IoT.'] } };
+}
+
 function PreviewResult({ metrics, onReplay, score }: { metrics: GameMetrics; onReplay: () => void; score: number }) {
+  const summary = previewSummary(metrics, score);
   return (
-    <section aria-labelledby="preview-result-title" className="mx-auto grid w-full max-w-[78rem] gap-3 py-5">
-      <header><p className="landing-eyebrow">Preview selesai</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="preview-result-title">Hasil sesi Peserta Demo</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil simulasi ini tidak disimpan dan bukan diagnosis atau rekomendasi terapi.</p></header>
-      <div><ResultStats metrics={metrics} score={score} /><GameResultChart metrics={metrics} /></div>
-      <div className="flex flex-wrap gap-2"><Button onClick={onReplay}><RotateCcw aria-hidden className="size-5" />Main lagi</Button><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
-    </section>
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-white text-ink">
+      <section aria-labelledby="preview-result-title" className="mx-auto grid min-h-full w-full max-w-[78rem] gap-3 px-4 py-5 sm:px-6 lg:px-8">
+        <header><p className="landing-eyebrow">Preview selesai</p><h1 className="m-0 text-3xl font-black tracking-[-0.05em] sm:text-4xl" id="preview-result-title">Hasil sesi Peserta Demo</h1><p className="mt-1 mb-0 text-sm font-bold text-muted">Hasil simulasi ini tidak disimpan dan bukan diagnosis atau rekomendasi terapi.</p></header>
+        <div><ResultStats metrics={metrics} score={score} /><GameResultChart metrics={metrics} /><div className="mt-3"><AiSummaryPanels summary={summary} /></div></div>
+        <div className="flex flex-wrap gap-2 pb-8"><Button onClick={onReplay}><RotateCcw aria-hidden className="size-5" />Main lagi</Button><Link className={buttonClassName('secondary')} to={ROUTES.progressBoard}>Lihat Progress Board</Link><Link className={buttonClassName('quiet')} to={ROUTES.dashboard}>Kembali ke dashboard</Link></div>
+      </section>
+    </div>
   );
 }
 
