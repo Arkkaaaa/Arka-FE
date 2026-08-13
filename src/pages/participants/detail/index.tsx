@@ -110,8 +110,13 @@ function OverallModePanel({ summary }: { summary: ParticipantDetailDto['modeSumm
 
 function AggregateSummaryTabs({ participantId, summary }: { participantId: string; summary: NonNullable<ParticipantDetailDto['aggregateSummary']> }) {
   const [audience, setAudience] = useState<'participant' | 'clinician'>('participant');
-  if (summary.source !== 'AI') return <div className="mt-5"><SummaryLoading overall /></div>;
-  const content = audience === 'participant' ? summary.participantSummary : summary.clinicianSummary;
+  const pending = ['DETERMINISTIC', 'PENDING', 'PROCESSING'].includes(summary.source);
+  const pendingTooLong = Date.now() - new Date(summary.updatedAt).getTime() >= 10 * 60 * 1_000;
+  if (pending && !pendingTooLong) return <div className="mt-5"><SummaryLoading overall /></div>;
+  const fallbackContent = audience === 'participant'
+    ? 'Ringkasan otomatis belum tersedia. Statistik seluruh permainan Anda tetap dapat dilihat pada bagian perkembangan di bawah.'
+    : 'Ringkasan otomatis belum tersedia. Gunakan statistik per mode dan riwayat sesi sebagai sumber utama untuk peninjauan peserta.';
+  const content = (audience === 'participant' ? summary.participantSummary : summary.clinicianSummary) || fallbackContent;
   return (
     <div className="mt-5 overflow-hidden rounded-md border-2 border-divider bg-white">
       <div aria-label="Pilih ringkasan keseluruhan" className="flex gap-2 border-b-2 border-divider px-5 pt-4" role="tablist">{([['participant', 'Peserta'], ['clinician', 'Dokter']] as const).map(([value, label]) => <button aria-controls="aggregate-summary-panel" aria-selected={audience === value} className={`min-h-11 border-0 border-b-4 bg-transparent px-4 text-sm font-black ${audience === value ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'}`} key={value} onClick={() => setAudience(value)} role="tab" type="button">{label}</button>)}</div>
