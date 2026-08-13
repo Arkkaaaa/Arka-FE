@@ -17,7 +17,7 @@ export function GameModePage() {
   const viewportStage = stage === 'tutorial' || stage === 'session';
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-white text-ink">
+    <div className={`relative min-h-dvh bg-white text-ink ${stage === 'result' ? 'overflow-x-hidden' : 'overflow-hidden'}`}>
       {(stage === 'participant' || stage === 'setup') && <div aria-hidden className="landing-glow landing-glow-soft -top-36 -right-40 size-[34rem]" />}
       {stage === 'setup' && <div aria-hidden className="landing-glow landing-glow-yellow -bottom-48 -left-52 size-[36rem] opacity-45" />}
       {!immersive && <a className="skip-link" href="#game-mode-main">Lewati ke konten utama</a>}

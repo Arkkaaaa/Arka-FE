@@ -534,7 +534,19 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   function reset() {
     encouragementAudioRef.current?.pause();
     encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
-    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; setSessionId(null); setFruit('ORANGE'); setStage('participant');
+    sessionSocket.close(); preparation.reset(); createSession.reset(); sessionAttemptRef.current = null; sessionStartingRef.current = false; sessionRecoveryRef.current = null; setSessionId(null); setFruit('ORANGE'); setStage('participant');
+  }
+
+  function replay() {
+    encouragementAudioRef.current?.pause();
+    encouragementStateRef.current = { started: false, halfway: false, finalFive: false, lastPromptSecond: -10, lastCueSrc: null };
+    sessionSocket.close();
+    setupSocket.close();
+    setSessionId(null);
+    setPauseCommand(null);
+    setCountdown(3);
+    sessionRecoveryRef.current = null;
+    startPreparation();
   }
 
   if (stage === 'participant') return <GameParticipantEntry csrfToken={csrfToken} mode={mode} onContinue={(identity) => { setParticipant(identity); setFruit('ORANGE'); setStage('tutorial'); }} />;
@@ -550,7 +562,7 @@ export function GameFlow({ csrfToken, mode, onStageChange }: GameFlowProps) {
   );
 
   const savedResult = persistedSession.data?.result ?? sessionSnapshot?.result;
-  if (status === 'SAVED' && savedResult) return <GameResult displayName={sessionSnapshot?.displayName ?? participantName} onReplay={reset} result={savedResult} />;
+  if (status === 'SAVED' && savedResult) return <GameResult displayName={sessionSnapshot?.displayName ?? participantName} onReplay={replay} result={savedResult} />;
   if (['ABORTED', 'INTERRUPTED', 'SAVE_FAILED'].includes(status)) return <section className="mx-auto grid min-h-[32rem] max-w-2xl place-items-center text-center" aria-labelledby="terminal-title"><div><AlertTriangle aria-hidden className="mx-auto size-12 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black" id="terminal-title">{status === 'ABORTED' ? 'Sesi diakhiri' : status === 'INTERRUPTED' ? 'Koneksi alat terputus' : 'Hasil belum dapat disimpan'}</h1><p className="mt-4 mb-0 text-lg leading-8 text-muted">{sessionSnapshot?.message ?? 'Sesi berhenti. Pastikan perangkat tetap terhubung lalu coba lagi.'}</p><Button className="mt-7" onClick={reset}>Kembali ke awal</Button></div></section>;
   if (status === 'COMPLETED' || status === 'SAVING') return <section className="grid min-h-96 place-items-center text-center" aria-live="polite"><div><CheckCircle2 aria-hidden className="mx-auto size-12 text-success" /><h1 className="mt-5 mb-0 text-4xl font-black">Permainan selesai</h1><p className="mt-3 mb-0 text-lg font-bold text-muted">Menyimpan hasil…</p></div></section>;
   if (status === 'BINDING' || status === 'COUNTDOWN') return <section className="grid min-h-[32rem] place-items-center text-center" aria-live="polite"><div><p className="landing-eyebrow">{participantName}</p>{status === 'COUNTDOWN' ? <><p className="m-0 text-[8rem] leading-none font-black text-accent">{countdown}</p><h1 className="mt-5 mb-0 text-4xl font-black">Bersiap</h1><p className="mt-3 mb-0 text-lg text-muted">Permainan belum dimulai.</p></> : <><Gamepad2 aria-hidden className="mx-auto size-14 text-muted" /><h1 className="mt-5 mb-0 text-4xl font-black">Menyiapkan permainan</h1><p className="mt-3 mb-0 text-lg text-muted">{sessionSnapshot?.message ?? 'Perangkat dan aplikasi sedang dikonfirmasi.'}</p></>}</div></section>;
