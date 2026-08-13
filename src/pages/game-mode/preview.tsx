@@ -389,11 +389,11 @@ function SequenceMemoryPreview() {
     const timers: number[] = [];
     setCueIndex(null);
     sequence.forEach((_, index) => {
-      const startsAt = 1_200 + index * 1_250;
+      const startsAt = 1_200 + index * 2_350;
       timers.push(window.setTimeout(() => setCueIndex(index), startsAt));
-      timers.push(window.setTimeout(() => setCueIndex(null), startsAt + 900));
+      timers.push(window.setTimeout(() => setCueIndex(null), startsAt + 2_000));
     });
-    const exampleDuration = 1_200 + sequence.length * 900 + Math.max(0, sequence.length - 1) * 350;
+    const exampleDuration = 1_200 + sequence.length * 2_000 + Math.max(0, sequence.length - 1) * 350;
     timers.push(window.setTimeout(() => {
       responseStartedAtRef.current = performance.now();
       firstResponseLatencyRef.current = null;
